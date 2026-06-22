@@ -11,7 +11,8 @@ from pathlib import Path
 from datetime import datetime
 import subprocess
 
-sys.path.insert(0, str(Path(__file__).parent))
+# Import elite core
+sys.path.insert(0, '/tmp')
 from token_saver_elite_core import (
     TokenSaverElite, Elite, log_elite, EliteMemoryCache, EliteTokenBridge
 )
