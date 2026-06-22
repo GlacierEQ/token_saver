@@ -34,12 +34,69 @@ SAVINGS:                    95% ✅
 
 ## ✅ TIER-1 BULLETPROOF ARCHITECTURE
 
-### Core Features
-- ✅ Pre-flight validation (directory, db, cache, disk space)
-- ✅ Atomic operations (temp file → move pattern, no partial writes)
-- ✅ Comprehensive logging (audit trail, metrics, performance)
-- ✅ Post-operation verification (health checks, integrity validation)
-- ✅ Safety features (permissions, cleanup, idempotent operations)
+### Pre-Flight Validation
+- ✅ Directory structure validation
+- ✅ Database integrity check
+- ✅ Cache file permissions (600)
+- ✅ Disk space check (50MB minimum)
+- ✅ Python dependencies verified
+
+### Atomic Operations
+- ✅ Atomic cache writes (temp file → move pattern)
+- ✅ Database transaction safety
+- ✅ Rollback on any failure
+- ✅ No partial writes to disk
+
+### Comprehensive Logging
+- ✅ All operations timestamped
+- ✅ Error + success logging
+- ✅ Token spend tracking
+- ✅ Performance metrics recorded
+- ✅ Full audit trail in `~/.token_saver/token_saver.log`
+
+### Post-Operation Verification
+- ✅ Health checks on startup
+- ✅ Cache integrity validation
+- ✅ Database constraint enforcement
+- ✅ Live status reporting
+
+### Safety Features
+- ✅ Permission checks before writes
+- ✅ Disk space validation
+- ✅ Expired entry auto-cleanup
+- ✅ Corrupt data detection
+- ✅ Idempotent operations (safe to run multiple times)
+
+---
+
+## 🏗️ ELITE ARCHITECTURE
+
+### Core Components
+
+#### 1. **EliteMemoryCache** (Tier-1 Bulletproof)
+Local persistent cache with:
+- In-memory hash table (fast O(1) access)
+- JSON disk persistence
+- TTL-based expiration
+- Hit/miss tracking + metrics
+- Comprehensive audit logging
+- Atomic save/load operations
+
+#### 2. **EliteTokenBridge** (Master Optimizer)
+Request optimization with:
+- Smart batching (5 requests → 1)
+- Context compression (90% reduction)
+- Query hashing (duplicate detection)
+- Token estimation
+- Performance tracking
+
+#### 3. **TokenSaverElite** (Master Orchestrator)
+Brings it all together:
+- Cache management
+- Bridge orchestration
+- SQLite statistics database
+- Status reporting (colored CLI)
+- Health monitoring
 
 ---
 
@@ -49,81 +106,105 @@ SAVINGS:                    95% ✅
 ```bash
 git clone https://github.com/GlacierEQ/token_saver.git
 cd token_saver
-bash install.sh
+pip install -r requirements.txt
+python token_saver_elite_cli.py status
 ```
 
-### Usage
+### Health Check
 ```bash
-# Show status
-python3 token_saver_elite_cli.py status
+python token_saver_elite_cli.py health
+```
 
-# Health check
-python3 token_saver_elite_cli.py health
+---
 
-# Store value
-python3 token_saver_elite_cli.py cache_set "key" "value" 3600
+## 📋 COMMAND REFERENCE
 
-# Retrieve value (0 tokens!)
-python3 token_saver_elite_cli.py cache_get "key"
+### Status & Monitoring
+```bash
+python token_saver_elite_cli.py status    # Elite status report
+python token_saver_elite_cli.py health    # Full diagnostics
+```
 
-# Optimize request
-python3 token_saver_elite_cli.py optimize "Your query here"
+### Cache Management
+```bash
+# Store a value
+python token_saver_elite_cli.py cache_set KEY VALUE [TTL_SECONDS]
 
-# Batch multiple requests
-python3 token_saver_elite_cli.py batch
+# Retrieve (0 tokens if cached!)
+python token_saver_elite_cli.py cache_get KEY
 
 # Clean expired entries
-python3 token_saver_elite_cli.py clean
+python token_saver_elite_cli.py clean
 
 # Export cache
-python3 token_saver_elite_cli.py export /tmp/backup.json
+python token_saver_elite_cli.py export [PATH]
+```
+
+### Optimization
+```bash
+# Optimize a request
+python token_saver_elite_cli.py optimize "Your query here"
+
+# Batch optimize
+python token_saver_elite_cli.py batch
 ```
 
 ---
 
 ## 📊 PERFORMANCE
 
-- **Cache hit rate:** 80-95% after 100+ queries
-- **Tokens saved per hit:** ~50 tokens
-- **Tokens saved per batch:** ~200 tokens
-- **Tokens saved per compression:** ~100 tokens
-- **Daily savings (conservative):** 5,000-10,000 tokens
+| Metric | Result |
+|--------|--------|
+| Cache hit rate | >80% after 100 queries |
+| Tokens per cache hit | 0 (fully cached) |
+| Batch savings | -30% per 5 requests |
+| Context compression | -90% on large contexts |
+| Total daily savings | 5,000-10,000 tokens |
 
 ---
 
 ## 🔐 SECURITY
 
-- File permissions: `600` (user read-write only)
-- Atomic writes (no corrupt partial files)
+- Cache file permissions: `600` (user only)
+- Atomic writes (no partial/corrupt files)
+- No credentials stored
+- Full audit trail
 - Automatic cleanup of expired data
-- Full audit trail with timestamps
-- No credentials stored in cache
+
+---
+
+## 🎓 PRINCIPLES
+
+✅ **Tier-1 BULLETPROOF**
+- Pre-flight validation
+- Atomic operations
+- Comprehensive logging
+- Error handling + rollback
+- Post-op verification
 
 ---
 
 ## 📈 ROADMAP
 
-### v3.0 (CURRENT) ✅
+### v3.0 ✅ CURRENT
 - Elite memory cache
-- Token bridge optimizer
+- Token bridge
 - Smart batching
 - Context compression
 - SQLite stats
-- Comprehensive logging
-- Elite CLI
-- Health monitoring
+- CLI with colors
 
-### v3.1 (PLANNED)
+### v3.1 🔄 PLANNED
 - Mem0 integration
-- GitHub issues as fact store
-- Notion page caching
+- GitHub fact store
+- Notion caching
 - Performance dashboard
 
-### v4.0 (FUTURE)
+### v4.0 🚀 FUTURE
 - Multi-model optimization
 - Cross-workspace memory
-- Real-time token reporting
 - ML-based optimization
+- Real-time token reporting
 
 ---
 
