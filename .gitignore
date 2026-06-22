@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv
+.token_saver/
+*.log
+*.db
+cache.json
+cache.tmp
