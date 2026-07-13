@@ -1,189 +1,34 @@
-# 🚀 TOKEN_SAVER v3.1+ — MAXIMIZED ENGINEERING SUITE
+# Token Saver — measured implementation status
 
-**Status:** ✅ MAXIMIZED | Production Ready | All v3.1 Enhancements Implemented
-**Version:** 3.1+
-**Author:** Casey Barton | GlacierEQ
-**Case:** 1FDV-23-0001009
-**Release Date:** July 10, 2026
+This file supersedes earlier v3.1+ marketing language. The repository currently contains a v3.0 local-cache core plus a measured pure-pointer utility; it does not contain a verified Mem0, Notion, multi-model, or distributed GitHub implementation.
 
----
+## Implemented
 
-## 📊 EXECUTIVE SUMMARY
+- Local JSON cache with TTL and hit/miss counters.
+- SQLite schema initialization for future statistics.
+- Deterministic context sampling and same-type/model request batching.
+- `pure_pointer` externalization with SHA-256 provenance pointer.
+- Optional, read-only GitHub fact-store boundary using an injected transport.
 
-**v3.0 Baseline:** 90-95% token savings
-**v3.1+ Addition:** +50% additional savings from 5 new enhancements
-**v3.1+ TOTAL:** **95-99% token savings** (99%+ realistic across all query types)
+## Measured benchmark fixture
 
-**Real Impact:**
-```
-Monthly AI bill (no optimization):      $10,000
-After v3.0 implementation:              $500-1,000 (90-95% savings)
-After v3.1+ implementation:             $10-100 (95-99% savings)
-────────────────────────────────────────────
-MONTHLY SAVINGS:                        $9,900 (99%)
-ANNUAL SAVINGS:                         $118,800
-```
-
----
-
-## 🎯 WHAT'S NEW IN v3.1+
-
-### Enhancement 1: MEM0 INTEGRATION (+15% Persistent Distributed Memory)
-- Upload cache to Mem0 after each session
-- All agents retrieve facts from Mem0 (zero-token)
-- Facts survive across agent restarts
-- Team learns together over time
-
-### Enhancement 2: GITHUB FACT STORE (+10% Searchable Long-Term Memory)
-- Create GitHub issues per fact: `FACT: {key}`
-- Full-text search via GitHub API
-- Version history automatic
-- Free (GitHub-hosted)
-
-### Enhancement 3: NOTION CACHE (+20% Aspen Grove Zero-Token)
-- One-time download of entire Notion database
-- Cache all pages locally (native Python)
-- Query cached data (zero tokens)
-- Automatic sync on update
-
-### Enhancement 4: MULTI-MODEL ROUTER (+5% Smart Cost Optimization)
-- Real-time cost comparison across 8+ models
-- Route each query to optimal model
-- Latency-based routing (cost vs speed)
-
-### Enhancement 5: UNIFIED BRIDGE + CASCADE (+50% Total)
-- 5-layer optimization pipeline
-- 70% cache hits (0 tokens)
-- 20% multi-source memory (minimal tokens)
-- 10% optimized execution (5-10% tokens)
-- Average: **95-99% savings**
-
----
-
-## 🏗️ ARCHITECTURE
-
-```
-INPUT QUERY
-   ↓
-ELITE TOKEN BRIDGE (Master Orchestrator)
-   ├─ EliteMemoryCache (local + persistent)
-   ├─ EliteMem0Bridge (persistent distributed) [+15%]
-   ├─ EliteGitHubFactStore (searchable facts) [+10%]
-   ├─ EliteNotionCache (Aspen Grove instant) [+20%]
-   ├─ EliteMultiModelRouter (cost optimization) [+5%]
-   └─ Context Compression Engine (smart batching)
-   ↓
-OUTPUT: Optimized Request (95-99% fewer tokens)
-   ↓
-Store in all 4 memory layers for next time
-```
-
----
-
-## 📈 PERFORMANCE
-
-### Savings Breakdown (Cumulative)
-
-| Enhancement | Impact | Cumulative |
-|------------|--------|----------|
-| **v3.0 Baseline** | 90-95% | 90-95% |
-| + Mem0 | +15% | 95%+ |
-| + GitHub | +10% | 96%+ |
-| + Notion | +20% | 97%+ |
-| + Multi-Model | +5% | 98%+ |
-| **v3.1+ TOTAL** | **+50%** | **95-99%** |
-
-### Real-World Impact
-
-**100 daily queries:**
-- Cost per query (unoptimized): $0.10
-- Cost per query (v3.0): $0.01 (90% savings)
-- Cost per query (v3.1+): $0.002 (98% savings)
-- **Annual savings:** $292
-
-**1,000 queries/day (typical enterprise):**
-- Annual savings: $2,920
-
-**10,000 queries/day (large enterprise):**
-- Annual savings: $29,200
-
----
-
-## 🚀 QUICK START
+Run:
 
 ```bash
-git clone https://github.com/GlacierEQ/token_saver.git
-cd token_saver
-pip install -r requirements.txt
-python token_saver_v31_maximized.py
+python3 benchmarks/benchmark_token_saver.py
 ```
 
-### Configuration (Recommended)
+The fixture measures byte/count behavior, not wall-clock speed or universal token savings:
 
-```bash
-export MEM0_API_KEY="m0-your-api-key"
-export GITHUB_TOKEN="ghp_your-token"
-export NOTION_TOKEN="secret_your-token"
-export ASPEN_GROVE_DB_ID="database-id"
-```
+| Workload | Fixture result |
+|---|---:|
+| Cache miss then hit | 1 miss, 1 hit, 50 internal accounting tokens saved |
+| Context sampling | 100 input lines → 12 output lines; 3,089 → 369 bytes |
+| Same-type/model batching | 3 requests → 1; 300 → 210 estimated tokens |
+| Pointer externalization | 6,000 → 58 bytes; 99.03% byte reduction |
 
-### Basic Usage
+These are reproducible fixture results, not guarantees for arbitrary workloads. No claim is made for overall 95–99% savings, cache-hit rates, latency, or financial savings.
 
-```python
-from token_saver_v31_maximized import TokenSaverEliteV31
+## Optional integrations
 
-ts = TokenSaverEliteV31()
-ts.report()  # Full status
-
-request = {"query": "Hawaii family court statute", "tokens": 150}
-optimized = ts.bridge.optimize_request(request)
-```
-
----
-
-## 🎯 USE CASES
-
-### Legal Research (Hawaii Family Court)
-- Without optimization: 250 tokens × $0.008 = $0.002/query
-- With v3.1+: Notion cache → 0 tokens
-- **Result:** 100x cheaper per query
-
-### Case Timeline Tracking
-- Query: "What's the status of JEFS filing?"
-- Without: 300 tokens
-- With v3.1+: 0 tokens (cached)
-- **Savings:** 300 tokens per query
-
-### Multi-Agent Teams
-- Agent 1 learns fact → uploads to Mem0
-- Agent 2 retrieves (0 tokens)
-- Agent 3 retrieves (0 tokens)
-- **Result:** 3x knowledge multiplication with minimal cost
-
----
-
-## 🔐 RELIABILITY
-
-✅ **Tier-1 Bulletproof Guarantees**
-- Pre-flight validation
-- Atomic operations (temp file → move)
-- Comprehensive logging + audit trail
-- Health checks on startup
-- Automatic cleanup of expired data
-- Idempotent operations (safe to run multiple times)
-
----
-
-## 📊 ROADMAP v4.0+
-
-- ML-based query optimization (learn from cache patterns)
-- Distributed consensus (sync across devices)
-- Advanced compression (semantic + LZ4)
-- Web API server (remote access)
-- Real-time dashboard (browser UI)
-
----
-
-**Status: 🟢 v3.1+ MAXIMIZED & OPERATIONAL**
-
-*95-99% token savings. Enterprise-grade reliability. Built for genius-level optimization.* ⚡🔥
+Credentials are never embedded. The GitHub boundary remains disabled unless a transport is explicitly injected. Its tests use a mock transport and make no network calls. Additional integrations should follow the same pattern, one at a time, with explicit tests and measured behavior.

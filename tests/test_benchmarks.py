@@ -6,7 +6,7 @@ from benchmark_token_saver import run
 def test_deterministic_benchmarks():
     result = run()
     assert result['cache_hit_miss'] == {'miss_is_none': True, 'hit_value': {'answer': 42}, 'hits': 1, 'misses': 1, 'tokens_saved': 50}
-    assert result['compression'] == {'input_lines': 100, 'output_lines': 12, 'input_bytes': 2889, 'output_bytes': 337}
+    assert result['compression'] == {'input_lines': 100, 'output_lines': 12, 'input_bytes': 3089, 'output_bytes': 369}
     assert result['batching'] == {'input_requests': 3, 'output_requests': 1, 'before': 300, 'after': 210}
     assert result['pointer_externalization']['bytes_in'] == 6000
     assert result['pointer_externalization']['bytes_out'] == 58

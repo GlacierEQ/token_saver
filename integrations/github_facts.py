@@ -1,6 +1,7 @@
-"""First optional integration: a credential-optional GitHub fact store.
+"""First optional integration: read-only GitHub fact retrieval.
 
 The transport is injected so tests never require a token or network access.
+A real HTTP adapter can be added later without changing callers.
 """
 from dataclasses import dataclass
 from typing import Callable, Dict, Optional
@@ -20,8 +21,3 @@ class GitHubFactStore:
         if not self.enabled:
             return None
         return self.transport(path, self.token)
-
-    def put(self, path: str, value: Dict) -> Dict:
-        if not self.enabled:
-            raise RuntimeError('GitHub fact store is disabled: provide an injected transport')
-        return self.transport(path, self.token)  # write transport can be added without changing callers
