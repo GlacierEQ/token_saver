@@ -1,0 +1,6 @@
+{
+  "batching": {"after": 210, "before": 300, "input_requests": 3, "output_requests": 1},
+  "cache_hit_miss": {"hit_value": {"answer": 42}, "hits": 1, "miss_is_none": true, "misses": 1, "tokens_saved": 50},
+  "compression": {"input_bytes": 3089, "input_lines": 100, "output_bytes": 369, "output_lines": 12},
+  "pointer_externalization": {"bytes_in": 6000, "bytes_out": 58, "savings_pct": 99.03}
+}
