@@ -1,4 +1,5 @@
 from dataclasses import replace
+from concurrent.futures import ThreadPoolExecutor
 import sys
 import unittest
 from pathlib import Path
@@ -47,6 +48,16 @@ class PurePointerTests(unittest.TestCase):
                     resolve(escaped, root)
             finally:
                 outside.unlink(missing_ok=True)
+
+    def test_concurrent_externalize_uses_unique_temporary_files(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            body = "concurrent payload" * 100
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                pointers = list(pool.map(lambda _: externalize(body, root, "same"), range(24)))
+            self.assertTrue(all(resolve(pointer, root) == body for pointer in pointers))
+            self.assertEqual(len({pointer.sha256 for pointer in pointers}), 1)
+            self.assertEqual(list(root.glob("*.tmp")), [])
 
 
 if __name__ == "__main__":
