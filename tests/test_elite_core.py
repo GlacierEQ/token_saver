@@ -1,4 +1,5 @@
 import copy
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -55,6 +56,32 @@ class EliteCoreTests(unittest.TestCase):
             self.assertFalse(cache.set("new", {"ok": False}))
             self.assertNotIn("new", cache.memory)
             self.assertEqual(cache.get("existing"), {"ok": True})
+
+    def test_cache_hit_does_not_block_on_full_cache_fsync(self):
+        with TemporaryDirectory() as directory:
+            cache = EliteMemoryCache(directory)
+            self.assertTrue(cache.set("existing", {"ok": True}))
+            cache._save_cache = lambda: self.fail("cache hit attempted synchronous persistence")
+            self.assertEqual(cache.get("existing"), {"ok": True})
+
+    def test_invalid_entry_does_not_discard_valid_entries(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            valid = {
+                "key": "valid",
+                "value": {"ok": True},
+                "ttl": 3600,
+                "created_at": 4102444800.0,
+                "source": "test",
+                "hits": 0,
+            }
+            (root / "cache.json").write_text(json.dumps({
+                "cache": {"invalid": {"unknown": True}, "valid": valid},
+                "stats": {},
+            }), encoding="utf-8")
+            cache = EliteMemoryCache(directory)
+            self.assertEqual(cache.get("valid"), {"ok": True})
+            self.assertNotIn("invalid", cache.memory)
 
 
 if __name__ == "__main__":
