@@ -31,6 +31,7 @@ class EliteCoreTests(unittest.TestCase):
             self.assertGreater(first["measurement"]["saved"], 0)
             self.assertEqual(first["cache"]["algorithm"], "sha256")
             self.assertFalse(first["cache"]["hit"])
+            self.assertTrue(first["cache"]["stored"])
             self.assertTrue(second["cache"]["hit"])
             reloaded = EliteMemoryCache(directory)
             self.assertEqual(reloaded.get(first["cache"]["key"])["context"], first["context"])
@@ -45,6 +46,15 @@ class EliteCoreTests(unittest.TestCase):
             self.assertEqual(batched[0]["request_count"], 2)
             self.assertEqual(batched[0]["savings_status"], "not_measured")
             self.assertNotIn("token_estimate_after", batched[0])
+
+    def test_write_failure_rolls_back_new_entry_without_breaking_reads(self):
+        with TemporaryDirectory() as directory:
+            cache = EliteMemoryCache(directory)
+            self.assertTrue(cache.set("existing", {"ok": True}))
+            cache._save_cache = lambda: False
+            self.assertFalse(cache.set("new", {"ok": False}))
+            self.assertNotIn("new", cache.memory)
+            self.assertEqual(cache.get("existing"), {"ok": True})
 
 
 if __name__ == "__main__":
