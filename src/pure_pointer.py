@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -38,9 +39,22 @@ def externalize(body: str, dest: Path, label: str = "blob") -> Pointer:
     raw = body.encode("utf-8")
     digest = hashlib.sha256(raw).hexdigest()
     path = root / f"{_safe_label(label)}_{digest}.txt"
-    temp_path = path.with_suffix(".tmp")
-    temp_path.write_bytes(raw)
-    os.replace(temp_path, path)
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=root,
+            prefix=f"{_safe_label(label)}_{digest}_",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_file.write(raw)
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
+            temp_path = Path(temp_file.name)
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
     canonical_uri = f"sha256://{digest}"
     compact = f"[ptr:{canonical_uri}|file:{path.name}|n={len(raw)}]"
     return Pointer(str(path), canonical_uri, digest, len(raw), len(compact.encode("utf-8")))
