@@ -35,9 +35,15 @@ class EliteCLI:
         if len(args) < 2:
             log_elite("Usage: cache_set KEY VALUE [TTL_SECONDS]", "ERROR")
             return
-        ttl = int(args[2]) if len(args) > 2 else 3600
-        self.ts.cache.set(args[0], args[1], ttl=ttl, source="cli")
-        log_elite(f"Cached '{args[0]}' (TTL: {ttl}s)", "SUCCESS")
+        try:
+            ttl = int(args[2]) if len(args) > 2 else 3600
+        except ValueError:
+            log_elite("TTL_SECONDS must be a valid integer", "ERROR")
+            return
+        if self.ts.cache.set(args[0], args[1], ttl=ttl, source="cli"):
+            log_elite(f"Cached '{args[0]}' (TTL: {ttl}s)", "SUCCESS")
+        else:
+            log_elite(f"Could not persist cache entry '{args[0]}'", "ERROR")
 
     def cmd_cache_get(self, args):
         if not args:
