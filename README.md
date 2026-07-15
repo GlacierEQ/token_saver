@@ -14,7 +14,7 @@ A dependency-free Python toolkit for reducing repeated context transfer.
 ## Run
 
 ```bash
-python3 -m pytest -q
+python3 -m unittest discover -s tests -v
 python3 benchmarks/benchmark_token_saver.py
 python3 token_saver_elite_cli.py health
 ```
