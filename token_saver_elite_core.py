@@ -1,311 +1,300 @@
 #!/usr/bin/env python3
-"""
-🚀 TOKEN_SAVER v3.0 — ELITE ENGINEERING
-Distributed memory + token bridge with Tier-1 bulletproof architecture
-Author: Casey Barton | GlacierEQ | 1FDV-23-0001009
-"""
+"""Dependency-free, measurement-honest request cache and context optimizer."""
 
-import os
-import sys
-import json
-import time
+from __future__ import annotations
+
+import copy
 import hashlib
+import json
 import logging
-from pathlib import Path
-from typing import Any, Dict, Optional, List
-from datetime import datetime, timedelta
-from dataclasses import dataclass, asdict
+import os
 import sqlite3
-from functools import wraps
+import time
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-# COLORS FOR ELITE UI
+
 class Elite:
-    GREEN = '\033[92m'
-    BLUE = '\033[94m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    CYAN = '\033[96m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+    GREEN = "\033[92m"
+    BLUE = "\033[94m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    CYAN = "\033[96m"
+    BOLD = "\033[1m"
+    END = "\033[0m"
+
 
 def colored(text: str, color: str) -> str:
-    """Return colored text for elite CLI output"""
     return f"{color}{text}{Elite.END}"
 
-def log_elite(msg: str, level: str = "INFO"):
-    """Elite timestamped logging"""
+
+def log_elite(msg: str, level: str = "INFO") -> None:
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    if level == "ERROR":
-        print(colored(f"[{ts}] ❌ {msg}", Elite.RED))
-    elif level == "SUCCESS":
-        print(colored(f"[{ts}] ✅ {msg}", Elite.GREEN))
-    elif level == "WARN":
-        print(colored(f"[{ts}] ⚠️  {msg}", Elite.YELLOW))
-    else:
-        print(colored(f"[{ts}] ℹ️  {msg}", Elite.BLUE))
+    color = {"ERROR": Elite.RED, "SUCCESS": Elite.GREEN, "WARN": Elite.YELLOW}.get(level, Elite.BLUE)
+    print(colored(f"[{ts}] {level}: {msg}", color))
+
+
+def canonical_json(value: Any) -> str:
+    """Stable JSON used for cache identity and byte measurements."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
+
+
+def sha256_key(value: Any) -> str:
+    return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+
 
 @dataclass
 class CacheEntry:
-    """Elite cache entry with metadata"""
     key: str
     value: Any
-    ttl: int  # seconds
+    ttl: int
     created_at: float
-    source: str  # "memory", "github", "notion", "db"
+    source: str
     hits: int = 0
-    
+
     def is_expired(self) -> bool:
         return time.time() > self.created_at + self.ttl
-    
-    def to_dict(self):
+
+    def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
 
+
 class EliteMemoryCache:
-    """Tier-1 bulletproof local cache with persistence"""
-    
-    def __init__(self, home_dir: str = None):
+    """Small local JSON cache with atomic persistence and honest metrics."""
+
+    def __init__(self, home_dir: Optional[str] = None):
         self.home_dir = Path(home_dir or os.path.expanduser("~/.token_saver"))
         self.home_dir.mkdir(parents=True, exist_ok=True)
         self.cache_file = self.home_dir / "cache.json"
         self.log_file = self.home_dir / "token_saver.log"
         self.memory: Dict[str, CacheEntry] = {}
-        self.stats = {"hits": 0, "misses": 0, "tokens_saved": 0}
-        
+        self.stats = {
+            "hits": 0,
+            "misses": 0,
+            "optimized_bytes_before": 0,
+            "optimized_bytes_after": 0,
+        }
         self._setup_logging()
         self._load_cache()
-        log_elite("✨ Elite Memory Cache initialized", "SUCCESS")
-    
-    def _setup_logging(self):
-        """Bulletproof logging setup"""
-        self.logger = logging.getLogger("token_saver")
-        self.logger.setLevel(logging.DEBUG)
-        handler = logging.FileHandler(self.log_file)
-        formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-    
-    def _load_cache(self):
-        """Atomic load from disk"""
+
+    def _setup_logging(self) -> None:
+        self.logger = logging.getLogger(f"token_saver:{self.log_file}")
+        self.logger.setLevel(logging.INFO)
+        self.logger.propagate = False
+        if not self.logger.handlers:
+            handler = logging.FileHandler(self.log_file)
+            handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s"))
+            self.logger.addHandler(handler)
+
+    def _load_cache(self) -> None:
         try:
-            if self.cache_file.exists():
-                with open(self.cache_file, 'r') as f:
-                    data = json.load(f)
-                    for k, v in data.get("cache", {}).items():
-                        entry = CacheEntry(**v)
-                        if not entry.is_expired():
-                            self.memory[k] = entry
-                    self.stats = data.get("stats", self.stats)
-                self.logger.info(f"Loaded {len(self.memory)} cache entries")
-        except Exception as e:
-            self.logger.error(f"Cache load failed: {e}")
-    
-    def _save_cache(self):
-        """Atomic save to disk with rollback on failure"""
+            if not self.cache_file.exists():
+                return
+            with self.cache_file.open("r", encoding="utf-8") as stream:
+                data = json.load(stream)
+            for key, raw_entry in data.get("cache", {}).items():
+                try:
+                    entry = CacheEntry(**raw_entry)
+                    if not entry.is_expired():
+                        self.memory[key] = entry
+                except (TypeError, ValueError) as exc:
+                    self.logger.warning("Skipping invalid cache entry %s: %s", key, exc)
+            loaded_stats = data.get("stats", {})
+            for key in self.stats:
+                value = loaded_stats.get(key, 0)
+                self.stats[key] = value if isinstance(value, int) and value >= 0 else 0
+        except (OSError, ValueError, TypeError) as exc:
+            self.logger.error("Cache load failed: %s", exc)
+
+    def _save_cache(self) -> bool:
+        temp_file = self.cache_file.with_suffix(".tmp")
         try:
-            temp_file = self.cache_file.with_suffix('.tmp')
             data = {
-                "cache": {k: v.to_dict() for k, v in self.memory.items()},
+                "schema_version": "2.0.0",
+                "cache": {key: entry.to_dict() for key, entry in self.memory.items()},
                 "stats": self.stats,
-                "saved_at": datetime.now().isoformat()
+                "saved_at": datetime.now().isoformat(),
             }
-            with open(temp_file, 'w') as f:
-                json.dump(data, f, indent=2, default=str)
-            temp_file.replace(self.cache_file)  # Atomic move
-            self.logger.info("Cache persisted")
-        except Exception as e:
-            self.logger.error(f"Cache save failed: {e}")
-            if temp_file.exists():
-                temp_file.unlink()  # Rollback
-    
-    def set(self, key: str, value: Any, ttl: int = 3600, source: str = "memory"):
-        """Store with bulletproof validation"""
+            with temp_file.open("w", encoding="utf-8") as stream:
+                json.dump(data, stream, indent=2, ensure_ascii=False, default=str)
+                stream.flush()
+                os.fsync(stream.fileno())
+            temp_file.replace(self.cache_file)
+            return True
+        except (OSError, TypeError, ValueError) as exc:
+            self.logger.error("Cache save failed: %s", exc)
+            temp_file.unlink(missing_ok=True)
+            return False
+
+    def set(self, key: str, value: Any, ttl: int = 3600, source: str = "memory") -> bool:
         if not key or len(key) > 256:
-            raise ValueError("Key must be 1-256 chars")
-        self.memory[key] = CacheEntry(
-            key=key, value=value, ttl=ttl, created_at=time.time(), source=source
-        )
-        self._save_cache()
-        self.logger.info(f"Cached {key} from {source}")
-    
+            raise ValueError("key must be 1-256 characters")
+        if ttl <= 0:
+            raise ValueError("ttl must be positive")
+        previous = self.memory.get(key)
+        self.memory[key] = CacheEntry(key=key, value=value, ttl=ttl, created_at=time.time(), source=source)
+        if self._save_cache():
+            return True
+        if previous is None:
+            del self.memory[key]
+        else:
+            self.memory[key] = previous
+        return False
+
     def get(self, key: str) -> Optional[Any]:
-        """Retrieve with expiry check"""
-        if key not in self.memory:
+        entry = self.memory.get(key)
+        if entry is None:
             self.stats["misses"] += 1
-            self.logger.debug(f"Cache miss: {key}")
             return None
-        
-        entry = self.memory[key]
         if entry.is_expired():
             del self.memory[key]
-            self._save_cache()
             self.stats["misses"] += 1
-            self.logger.debug(f"Cache expired: {key}")
+            self._save_cache()
             return None
-        
         entry.hits += 1
         self.stats["hits"] += 1
-        self.stats["tokens_saved"] += 50  # Approx tokens saved per cache hit
-        self._save_cache()
-        return entry.value
-    
-    def health(self) -> Dict:
-        """Tier-1 health check"""
-        expired = sum(1 for e in self.memory.values() if e.is_expired())
+        return copy.deepcopy(entry.value)
+
+    def record_measurement(self, before: int, after: int) -> bool:
+        if before < 0 or after < 0:
+            raise ValueError("byte measurements cannot be negative")
+        previous_before = self.stats["optimized_bytes_before"]
+        previous_after = self.stats["optimized_bytes_after"]
+        self.stats["optimized_bytes_before"] += before
+        self.stats["optimized_bytes_after"] += after
+        if self._save_cache():
+            return True
+        self.stats["optimized_bytes_before"] = previous_before
+        self.stats["optimized_bytes_after"] = previous_after
+        return False
+
+    def health(self) -> Dict[str, Any]:
+        expired = sum(1 for entry in self.memory.values() if entry.is_expired())
+        before = self.stats["optimized_bytes_before"]
+        after = self.stats["optimized_bytes_after"]
         return {
             "cache_size": len(self.memory),
             "expired": expired,
             "valid": len(self.memory) - expired,
-            "hits": self.stats["hits"],
-            "misses": self.stats["misses"],
-            "tokens_saved": self.stats["tokens_saved"],
+            **self.stats,
+            "measured_bytes_saved": max(0, before - after),
+            "measurement_unit": "canonical_utf8_bytes",
             "cache_dir": str(self.home_dir),
-            "disk_size_kb": sum(f.stat().st_size for f in self.home_dir.glob("**/*") if f.is_file()) // 1024
+            "disk_size_kb": sum(path.stat().st_size for path in self.home_dir.glob("**/*") if path.is_file()) // 1024,
         }
 
+
 class EliteTokenBridge:
-    """Master token optimization orchestrator"""
-    
+    """Deterministic request optimizer; it never mutates caller input."""
+
     def __init__(self, cache: EliteMemoryCache):
         self.cache = cache
-        self.request_queue = []
-        self.compression_ratios = {"history": 0.1, "context": 0.05, "batch": 0.2}
-        
-    def batch_requests(self, requests: List[Dict]) -> List[Dict]:
-        """Intelligently batch similar requests"""
-        batched = {}
-        for req in requests:
-            key = (req.get("type"), req.get("model"))
-            if key not in batched:
-                batched[key] = []
-            batched[key].append(req)
-        
-        # Combine similar requests
-        combined = []
-        for (req_type, model), reqs in batched.items():
-            if len(reqs) > 1:
-                combined_req = {
-                    "type": req_type,
-                    "model": model,
-                    "queries": [r.get("query") for r in reqs],
-                    "token_estimate_before": sum(r.get("tokens", 100) for r in reqs),
-                }
-                combined_req["token_estimate_after"] = int(
-                    combined_req["token_estimate_before"] * 0.7  # 30% savings
-                )
-                combined.append(combined_req)
-            else:
-                combined.extend(reqs)
-        
-        return combined
-    
+
+    def batch_requests(self, requests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        grouped: Dict[tuple, List[Dict[str, Any]]] = {}
+        for request in requests:
+            grouped.setdefault((request.get("type"), request.get("model")), []).append(copy.deepcopy(request))
+        result: List[Dict[str, Any]] = []
+        for (request_type, model), members in grouped.items():
+            if len(members) == 1:
+                result.append(members[0])
+                continue
+            result.append({
+                "type": request_type,
+                "model": model,
+                "requests": members,
+                "request_count": len(members),
+                "savings_status": "not_measured",
+            })
+        return result
+
     def compress_context(self, context: str, compression_ratio: float = 0.1) -> str:
-        """Elite context compression"""
-        lines = context.split('\n')
-        keep_count = max(1, int(len(lines) * compression_ratio))
-        
-        # Keep first, last, and most important
-        compressed = lines[:2] + lines[-keep_count:]
-        return '\n'.join(compressed)
-    
-    def optimize_request(self, request: Dict) -> Dict:
-        """Single-request optimization"""
-        optimized = request.copy()
-        
-        # Check cache first
-        query_hash = hashlib.md5(
-            str(request.get("query", "")).encode()
-        ).hexdigest()
-        cached = self.cache.get(f"query:{query_hash}")
-        
-        if cached:
-            optimized["cached"] = True
-            optimized["original_tokens"] = request.get("tokens", 100)
-            optimized["optimized_tokens"] = 0
-            return optimized
-        
-        # Apply compression
-        if "context" in request:
-            request["context"] = self.compress_context(request["context"])
-        
-        optimized["tokens_saved"] = int(request.get("tokens", 100) * 0.3)
+        if not 0 < compression_ratio <= 1:
+            raise ValueError("compression_ratio must be greater than 0 and at most 1")
+        lines = context.splitlines()
+        if len(lines) <= 3 or compression_ratio == 1:
+            return context
+        keep_total = max(3, min(len(lines), round(len(lines) * compression_ratio)))
+        head_count = min(2, keep_total)
+        tail_count = keep_total - head_count
+        selected = lines[:head_count] + (lines[-tail_count:] if tail_count else [])
+        return "\n".join(selected)
+
+    def optimize_request(self, request: Dict[str, Any], ttl: int = 3600) -> Dict[str, Any]:
+        original = copy.deepcopy(request)
+        cache_key = f"request:sha256:{sha256_key(original)}"
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            cached["cache"] = {"hit": True, "key": cache_key, "algorithm": "sha256"}
+            return cached
+
+        optimized = copy.deepcopy(original)
+        before = len(canonical_json(original).encode("utf-8"))
+        context = optimized.get("context")
+        if isinstance(context, str):
+            optimized["context"] = self.compress_context(context)
+        after = len(canonical_json(optimized).encode("utf-8"))
+        optimized["measurement"] = {
+            "unit": "canonical_utf8_bytes",
+            "before": before,
+            "after": after,
+            "saved": max(0, before - after),
+        }
+        optimized["cache"] = {"hit": False, "key": cache_key, "algorithm": "sha256"}
+        optimized["cache"]["stored"] = self.cache.set(
+            cache_key, optimized, ttl=ttl, source="optimized_request"
+        )
+        optimized["measurement"]["persisted"] = self.cache.record_measurement(before, after)
         return optimized
 
+
 class TokenSaverElite:
-    """Master orchestrator — TIER 1 BULLETPROOF"""
-    
-    VERSION = "3.0"
-    CASE_ID = "1FDV-23-0001009"
-    
-    def __init__(self):
-        self.home = Path(os.path.expanduser("~/.token_saver"))
+    VERSION = "3.1.0"
+
+    def __init__(self, home_dir: Optional[str] = None):
+        self.home = Path(home_dir or os.path.expanduser("~/.token_saver"))
         self.home.mkdir(parents=True, exist_ok=True)
         self.cache = EliteMemoryCache(str(self.home))
         self.bridge = EliteTokenBridge(self.cache)
         self.db_path = self.home / "token_saver.db"
         self._init_db()
-        
-    def _init_db(self):
-        """Bulletproof SQLite initialization"""
+
+    def _init_db(self) -> None:
+        connection = sqlite3.connect(self.db_path)
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS query_cache (
-                    query_hash TEXT PRIMARY KEY,
-                    query TEXT,
-                    result TEXT,
-                    tokens_saved INT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    expires_at TIMESTAMP
-                )
-            """)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS token_stats (
-                    date TEXT PRIMARY KEY,
-                    requests INT,
-                    tokens_original INT,
-                    tokens_optimized INT,
-                    savings_percent REAL
-                )
-            """)
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            log_elite(f"DB init failed: {e}", "ERROR")
-    
-    def status(self) -> Dict:
-        """Elite status command"""
-        cache_health = self.cache.health()
+            with connection:
+                connection.execute("""
+                    CREATE TABLE IF NOT EXISTS query_cache (
+                        query_hash TEXT PRIMARY KEY,
+                        query TEXT,
+                        result TEXT,
+                        measured_bytes_saved INTEGER NOT NULL DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        expires_at TIMESTAMP
+                    )
+                """)
+        finally:
+            connection.close()
+
+    def status(self) -> Dict[str, Any]:
         return {
             "version": self.VERSION,
-            "case": self.CASE_ID,
             "home": str(self.home),
-            "cache": cache_health,
+            "cache": self.cache.health(),
             "bridge_ready": True,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
-    
-    def report(self):
-        """Elite status report with colors"""
+
+    def report(self) -> None:
         status = self.status()
-        print(f"\n{colored('=' * 50, Elite.BOLD)}")
-        print(colored(f"TOKEN_SAVER v{status['version']} — Elite Engineering", Elite.CYAN))
-        print(f"{colored('=' * 50, Elite.BOLD)}\n")
-        
-        print(f"  {colored('Case:', Elite.BOLD):<20} {status['case']}")
-        print(f"  {colored('Home:', Elite.BOLD):<20} {status['home']}")
-        
-        cache = status['cache']
-        print(f"\n  {colored('CACHE STATS', Elite.BOLD)}")
-        print(f"    Valid entries:     {colored(str(cache['valid']), Elite.GREEN)}")
-        print(f"    Expired entries:   {colored(str(cache['expired']), Elite.YELLOW)}")
-        print(f"    Cache hits:        {colored(str(cache['hits']), Elite.GREEN)}")
-        print(f"    Cache misses:      {colored(str(cache['misses']), Elite.YELLOW)}")
-        print(f"    Tokens saved:      {colored(str(cache['tokens_saved']), Elite.GREEN)}")
-        print(f"    Disk usage:        {cache['disk_size_kb']} KB")
-        
-        print(f"\n{colored('=' * 50, Elite.BOLD)}\n")
+        cache = status["cache"]
+        print(colored(f"TOKEN_SAVER v{status['version']}", Elite.CYAN))
+        print(f"Cache entries: {cache['valid']} valid, {cache['expired']} expired")
+        print(f"Hits/misses: {cache['hits']}/{cache['misses']}")
+        print(f"Measured bytes saved: {cache['measured_bytes_saved']}")
+
 
 if __name__ == "__main__":
-    ts = TokenSaverElite()
-    ts.report()
+    TokenSaverElite().report()
