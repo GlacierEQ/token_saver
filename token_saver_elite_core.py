@@ -95,9 +95,12 @@ class EliteMemoryCache:
             with self.cache_file.open("r", encoding="utf-8") as stream:
                 data = json.load(stream)
             for key, raw_entry in data.get("cache", {}).items():
-                entry = CacheEntry(**raw_entry)
-                if not entry.is_expired():
-                    self.memory[key] = entry
+                try:
+                    entry = CacheEntry(**raw_entry)
+                    if not entry.is_expired():
+                        self.memory[key] = entry
+                except (TypeError, ValueError) as exc:
+                    self.logger.warning("Skipping invalid cache entry %s: %s", key, exc)
             loaded_stats = data.get("stats", {})
             for key in self.stats:
                 value = loaded_stats.get(key, 0)
@@ -152,7 +155,6 @@ class EliteMemoryCache:
             return None
         entry.hits += 1
         self.stats["hits"] += 1
-        self._save_cache()
         return copy.deepcopy(entry.value)
 
     def record_measurement(self, before: int, after: int) -> bool:
@@ -260,17 +262,21 @@ class TokenSaverElite:
         self._init_db()
 
     def _init_db(self) -> None:
-        with sqlite3.connect(self.db_path) as connection:
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS query_cache (
-                    query_hash TEXT PRIMARY KEY,
-                    query TEXT,
-                    result TEXT,
-                    measured_bytes_saved INTEGER NOT NULL DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    expires_at TIMESTAMP
-                )
-            """)
+        connection = sqlite3.connect(self.db_path)
+        try:
+            with connection:
+                connection.execute("""
+                    CREATE TABLE IF NOT EXISTS query_cache (
+                        query_hash TEXT PRIMARY KEY,
+                        query TEXT,
+                        result TEXT,
+                        measured_bytes_saved INTEGER NOT NULL DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        expires_at TIMESTAMP
+                    )
+                """)
+        finally:
+            connection.close()
 
     def status(self) -> Dict[str, Any]:
         return {
