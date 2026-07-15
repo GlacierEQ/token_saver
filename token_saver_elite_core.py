@@ -105,7 +105,7 @@ class EliteMemoryCache:
         except (OSError, ValueError, TypeError) as exc:
             self.logger.error("Cache load failed: %s", exc)
 
-    def _save_cache(self) -> None:
+    def _save_cache(self) -> bool:
         temp_file = self.cache_file.with_suffix(".tmp")
         try:
             data = {
@@ -119,18 +119,26 @@ class EliteMemoryCache:
                 stream.flush()
                 os.fsync(stream.fileno())
             temp_file.replace(self.cache_file)
+            return True
         except (OSError, TypeError, ValueError) as exc:
             self.logger.error("Cache save failed: %s", exc)
             temp_file.unlink(missing_ok=True)
-            raise
+            return False
 
-    def set(self, key: str, value: Any, ttl: int = 3600, source: str = "memory") -> None:
+    def set(self, key: str, value: Any, ttl: int = 3600, source: str = "memory") -> bool:
         if not key or len(key) > 256:
             raise ValueError("key must be 1-256 characters")
         if ttl <= 0:
             raise ValueError("ttl must be positive")
+        previous = self.memory.get(key)
         self.memory[key] = CacheEntry(key=key, value=value, ttl=ttl, created_at=time.time(), source=source)
-        self._save_cache()
+        if self._save_cache():
+            return True
+        if previous is None:
+            del self.memory[key]
+        else:
+            self.memory[key] = previous
+        return False
 
     def get(self, key: str) -> Optional[Any]:
         entry = self.memory.get(key)
@@ -147,12 +155,18 @@ class EliteMemoryCache:
         self._save_cache()
         return copy.deepcopy(entry.value)
 
-    def record_measurement(self, before: int, after: int) -> None:
+    def record_measurement(self, before: int, after: int) -> bool:
         if before < 0 or after < 0:
             raise ValueError("byte measurements cannot be negative")
+        previous_before = self.stats["optimized_bytes_before"]
+        previous_after = self.stats["optimized_bytes_after"]
         self.stats["optimized_bytes_before"] += before
         self.stats["optimized_bytes_after"] += after
-        self._save_cache()
+        if self._save_cache():
+            return True
+        self.stats["optimized_bytes_before"] = previous_before
+        self.stats["optimized_bytes_after"] = previous_after
+        return False
 
     def health(self) -> Dict[str, Any]:
         expired = sum(1 for entry in self.memory.values() if entry.is_expired())
@@ -227,8 +241,10 @@ class EliteTokenBridge:
             "saved": max(0, before - after),
         }
         optimized["cache"] = {"hit": False, "key": cache_key, "algorithm": "sha256"}
-        self.cache.set(cache_key, optimized, ttl=ttl, source="optimized_request")
-        self.cache.record_measurement(before, after)
+        optimized["cache"]["stored"] = self.cache.set(
+            cache_key, optimized, ttl=ttl, source="optimized_request"
+        )
+        optimized["measurement"]["persisted"] = self.cache.record_measurement(before, after)
         return optimized
 
 
