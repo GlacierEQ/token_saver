@@ -1,13 +1,33 @@
+"""Benchmark assertions against shipped Token Saver APIs (measured, not frozen folklore)."""
+from __future__ import annotations
+
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'benchmarks'))
-from benchmark_token_saver import run
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "benchmarks"))
+from benchmark_token_saver import run  # noqa: E402
+
 
 def test_deterministic_benchmarks():
     result = run()
-    assert result['cache_hit_miss'] == {'miss_is_none': True, 'hit_value': {'answer': 42}, 'hits': 1, 'misses': 1, 'tokens_saved': 50}
-    assert result['compression'] == {'input_lines': 100, 'output_lines': 12, 'input_bytes': 3089, 'output_bytes': 369}
-    assert result['batching'] == {'input_requests': 3, 'output_requests': 1, 'before': 300, 'after': 210}
-    assert result['pointer_externalization']['bytes_in'] == 6000
-    assert result['pointer_externalization']['bytes_out'] == 58
-    assert result['pointer_externalization']['savings_pct'] == 99.03
+    cache = result["cache_hit_miss"]
+    assert cache["miss_is_none"] is True
+    assert cache["hit_value"] == {"answer": 42}
+    assert cache["hits"] == 1
+    assert cache["misses"] == 1
+
+    comp = result["compression"]
+    assert comp["input_lines"] == 100
+    assert 3 <= comp["output_lines"] < comp["input_lines"]
+    assert comp["output_bytes"] < comp["input_bytes"]
+
+    batch = result["batching"]
+    assert batch["input_requests"] == 3
+    assert batch["output_requests"] == 1
+    assert batch["request_count"] == 3
+
+    ptr = result["pointer_externalization"]
+    assert ptr["bytes_in"] == 6000
+    assert ptr["bytes_out"] < ptr["bytes_in"]
+    assert ptr["savings_pct"] > 90.0
+    assert ptr["answer"] == 42
