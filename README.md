@@ -30,3 +30,17 @@ savings, or fixed tokens saved per cache hit.
 
 The optimizer never treats byte reduction as an exact token count. External
 services require explicit configuration and mocked tests before activation.
+
+---
+
+## Fleet ops (transparent)
+
+This repo may include **`.integrity/`** (SHA-256 baselines / watchdog) and/or a health sidecar.
+These are **documented multi-repo fleet operations**, not covert implants.
+
+See [SECURITY_AND_FLEET_OPS.md](SECURITY_AND_FLEET_OPS.md) and
+`~/GlacierEQ_Swarm/state/PORTFOLIO_SHADOW_AND_GAUNTLET.md`.
+
+## Helix strand
+
+See [HELIX_STRAND.md](HELIX_STRAND.md) — piston/spiral role in the portfolio double helix.
