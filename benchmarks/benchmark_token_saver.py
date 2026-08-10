@@ -20,7 +20,7 @@ def run() -> dict:
         cache = EliteMemoryCache(str(Path(tmp) / "cache"))
         bridge = EliteTokenBridge(cache)
         miss = cache.get("missing")
-        cache.set("known", {"answer": 42}, ttl=3600, source="benchmark")
+        cache.set("known", {}, ttl=3600, source="benchmark")
         hit = cache.get("known")
         cache_result = {
             "miss_is_none": miss is None,
@@ -28,7 +28,7 @@ def run() -> dict:
             "hits": cache.stats["hits"],
             "misses": cache.stats["misses"],
             "optimized_bytes_before": cache.stats["optimized_bytes_before"],
-            "optimized_bytes_after": cache.stats["optimized_bytes_after"],
+            "optimized_bytes_after": cache.stats["optimized_bytes_after"]
         }
         context = "\n".join(f"line-{i}: deterministic context" for i in range(100))
         compressed = bridge.compress_context(context, compression_ratio=0.1)
@@ -36,7 +36,7 @@ def run() -> dict:
             "input_lines": len(context.splitlines()),
             "output_lines": len(compressed.splitlines()),
             "input_bytes": len(context.encode()),
-            "output_bytes": len(compressed.encode()),
+            "output_bytes": len(compressed.encode())
         }
         requests = [
             {"type": "query", "model": "local", "query": f"q{i}", "tokens": 100}
@@ -47,14 +47,14 @@ def run() -> dict:
             "input_requests": len(requests),
             "output_requests": len(batched),
             "request_count": batched[0].get("request_count", 1),
-            "savings_status": batched[0].get("savings_status", "n/a"),
+            "savings_status": batched[0].get("savings_status", "n/a")
         }
         pointer = measure(externalize("hello world " * 500, Path(tmp) / "pointers"))
         return {
             "cache_hit_miss": cache_result,
             "compression": compression_result,
             "batching": batching_result,
-            "pointer_externalization": pointer,
+            "pointer_externalization": pointer
         }
 
 

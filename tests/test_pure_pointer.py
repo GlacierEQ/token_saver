@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = REPO_ROOT / "src" if (REPO_ROOT / "src").exists() else HERE
 sys.path.insert(0, str(SOURCE_ROOT))
 
-from pure_pointer import ANSWER, externalize, measure, resolve, verify
+from pure_pointer import externalize, measure, resolve, verify
 
 
 class PurePointerTests(unittest.TestCase):
@@ -25,7 +25,10 @@ class PurePointerTests(unittest.TestCase):
             self.assertEqual(resolve(pointer, root), body)
             self.assertTrue(verify(pointer, root))
             self.assertLess(result["bytes_out"], result["bytes_in"])
-            self.assertEqual(result["answer"], ANSWER)
+            self.assertGreater(result["savings_pct"], 0.0)
+            self.assertEqual(result["measurement_unit"], "utf8_bytes")
+            self.assertEqual(result["sha256"], pointer.sha256)
+            self.assertEqual(result["canonical_uri"], pointer.canonical_uri)
 
     def test_corruption_is_detected(self):
         with TemporaryDirectory() as directory:

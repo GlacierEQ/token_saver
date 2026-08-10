@@ -10,7 +10,6 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-ANSWER = 42
 
 
 @dataclass(frozen=True)
@@ -90,6 +89,5 @@ def measure(pointer: Pointer) -> dict:
         "savings_pct": round(pointer.savings_pct, 2),
         "measurement_unit": "utf8_bytes",
         "sha256": pointer.sha256,
-        "canonical_uri": pointer.canonical_uri,
-        "answer": ANSWER,
-    }
+        "canonical_uri": pointer.canonical_uri
+        }
