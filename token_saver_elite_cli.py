@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
 """Token Saver command-line interface."""
 
 import json
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent
@@ -26,7 +25,10 @@ class EliteCLI:
         print(f"\n{Elite.BOLD}=== HEALTH CHECK ==={Elite.END}\n")
         print(f"Cache entries: {cache['valid']} valid, {cache['expired']} expired")
         print(f"Hits/misses:   {cache['hits']}/{cache['misses']}")
-        print(f"Hit rate:      {(cache['hits'] / total * 100) if total else 0:.1f}%")
+        print(
+            f"Hit rate:      "
+            f"{(cache['hits'] / total * 100) if total else 0:.1f}%"
+        )
         print(f"Measured bytes saved: {cache['measured_bytes_saved']}")
         print(f"Measurement unit:     {cache['measurement_unit']}")
         print(f"Disk usage:           {cache['disk_size_kb']} KB\n")
@@ -64,24 +66,42 @@ class EliteCLI:
 
     def cmd_clean(self, args=None):
         before = len(self.ts.cache.memory)
-        self.ts.cache.memory = {key: value for key, value in self.ts.cache.memory.items() if not value.is_expired()}
+        self.ts.cache.memory = {
+            key: value
+            for key, value in self.ts.cache.memory.items()
+            if not value.is_expired()
+        }
         self.ts.cache._save_cache()
-        log_elite(f"Cleaned {before - len(self.ts.cache.memory)} expired entries", "SUCCESS")
+        log_elite(
+            f"Cleaned {before - len(self.ts.cache.memory)} expired entries",
+            "SUCCESS",
+        )
 
     def cmd_export(self, args):
         output = Path(args[0]) if args else self.ts.home / "cache_export.json"
         data = {
             "version": self.ts.VERSION,
-            "exported_at": datetime.now().isoformat(),
-            "cache": {key: value.to_dict() for key, value in self.ts.cache.memory.items()},
+            "exported_at": datetime.now(UTC).isoformat(),
+            "cache": {
+                key: value.to_dict() for key, value in self.ts.cache.memory.items()
+            },
             "stats": self.ts.cache.stats,
         }
-        output.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+        output.write_text(
+            json.dumps(data, indent=2, default=str),
+            encoding="utf-8",
+        )
         log_elite(f"Cache exported to {output}", "SUCCESS")
 
     def cmd_help(self, args=None):
-        print(f"\n{Elite.BOLD}{Elite.CYAN}TOKEN_SAVER v{self.ts.VERSION}{Elite.END}\n")
-        print("  status | health | cache_set | cache_get | optimize | clean | export | help")
+        print(
+            f"\n{Elite.BOLD}{Elite.CYAN}TOKEN_SAVER "
+            f"v{self.ts.VERSION}{Elite.END}\n"
+        )
+        print(
+            "  status | health | cache_set | cache_get | "
+            "optimize | clean | export | help"
+        )
 
     def run(self, args):
         if not args:
