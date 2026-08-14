@@ -96,7 +96,7 @@ class PromotionAuthority:
 
 def verify_bound_grant(
     grant_dict: dict,
-    proof_receipt_path: str | bytes | Path,
+    proof_receipt_path: str | Path,
     *,
     secret: bytes = LOCAL_OPERATOR_SECRET,
     now: float | None = None,
