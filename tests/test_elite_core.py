@@ -7,7 +7,9 @@ from tempfile import TemporaryDirectory
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT if (REPO_ROOT / "token_saver_elite_core.py").exists() else HERE))
+sys.path.insert(
+    0, str(REPO_ROOT if (REPO_ROOT / "token_saver_elite_core.py").exists() else HERE)
+)
 
 from token_saver_elite_core import EliteMemoryCache, EliteTokenBridge, sha256_key
 
@@ -23,7 +25,10 @@ class EliteCoreTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             cache = EliteMemoryCache(directory)
             bridge = EliteTokenBridge(cache)
-            request = {"query": "q", "context": "\n".join(f"line-{i}" for i in range(20))}
+            request = {
+                "query": "q",
+                "context": "\n".join(f"line-{i}" for i in range(20)),
+            }
             original = copy.deepcopy(request)
             first = bridge.optimize_request(request)
             second = bridge.optimize_request(request)
@@ -35,15 +40,19 @@ class EliteCoreTests(unittest.TestCase):
             self.assertTrue(first["cache"]["stored"])
             self.assertTrue(second["cache"]["hit"])
             reloaded = EliteMemoryCache(directory)
-            self.assertEqual(reloaded.get(first["cache"]["key"])["context"], first["context"])
+            self.assertEqual(
+                reloaded.get(first["cache"]["key"])["context"], first["context"]
+            )
 
     def test_batch_does_not_fabricate_savings(self):
         with TemporaryDirectory() as directory:
             bridge = EliteTokenBridge(EliteMemoryCache(directory))
-            batched = bridge.batch_requests([
-                {"type": "query", "model": "local", "query": "a"},
-                {"type": "query", "model": "local", "query": "b"},
-            ])
+            batched = bridge.batch_requests(
+                [
+                    {"type": "query", "model": "local", "query": "a"},
+                    {"type": "query", "model": "local", "query": "b"},
+                ]
+            )
             self.assertEqual(batched[0]["request_count"], 2)
             self.assertEqual(batched[0]["savings_status"], "not_measured")
             self.assertNotIn("token_estimate_after", batched[0])
@@ -61,7 +70,9 @@ class EliteCoreTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             cache = EliteMemoryCache(directory)
             self.assertTrue(cache.set("existing", {"ok": True}))
-            cache._save_cache = lambda: self.fail("cache hit attempted synchronous persistence")
+            cache._save_cache = lambda: self.fail(
+                "cache hit attempted synchronous persistence"
+            )
             self.assertEqual(cache.get("existing"), {"ok": True})
 
     def test_invalid_entry_does_not_discard_valid_entries(self):
@@ -75,10 +86,15 @@ class EliteCoreTests(unittest.TestCase):
                 "source": "test",
                 "hits": 0,
             }
-            (root / "cache.json").write_text(json.dumps({
-                "cache": {"invalid": {"unknown": True}, "valid": valid},
-                "stats": {},
-            }), encoding="utf-8")
+            (root / "cache.json").write_text(
+                json.dumps(
+                    {
+                        "cache": {"invalid": {"unknown": True}, "valid": valid},
+                        "stats": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
             cache = EliteMemoryCache(directory)
             self.assertEqual(cache.get("valid"), {"ok": True})
             self.assertNotIn("invalid", cache.memory)

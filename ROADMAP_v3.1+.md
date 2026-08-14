@@ -20,7 +20,7 @@
 ```python
 bridge = EliteMem0Bridge(mem0_api_key="m0-...")
 bridge.cache_to_mem0(cache_dict)  # Upload
-facts = bridge.load_from_mem0()   # Download (0 tokens)
+facts = bridge.load_from_mem0()  # Download (0 tokens)
 ```
 
 **Savings:** +15% per session (persistent facts)

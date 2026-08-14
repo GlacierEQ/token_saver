@@ -12,7 +12,7 @@ import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 class Elite:
@@ -64,19 +64,19 @@ class CacheEntry:
     def is_expired(self) -> bool:
         return time.time() > self.created_at + self.ttl
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 class EliteMemoryCache:
     """Small local JSON cache with atomic persistence and honest metrics."""
 
-    def __init__(self, home_dir: Optional[str] = None):
+    def __init__(self, home_dir: str | None = None):
         self.home_dir = Path(home_dir or os.path.expanduser("~/.token_saver"))
         self.home_dir.mkdir(parents=True, exist_ok=True)
         self.cache_file = self.home_dir / "cache.json"
         self.log_file = self.home_dir / "token_saver.log"
-        self.memory: Dict[str, CacheEntry] = {}
+        self.memory: dict[str, CacheEntry] = {}
         self.stats = {
             "hits": 0,
             "misses": 0,
@@ -160,7 +160,7 @@ class EliteMemoryCache:
             self.memory[key] = previous
         return False
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         entry = self.memory.get(key)
         if entry is None:
             self.stats["misses"] += 1
@@ -187,7 +187,7 @@ class EliteMemoryCache:
         self.stats["optimized_bytes_after"] = previous_after
         return False
 
-    def health(self) -> Dict[str, Any]:
+    def health(self) -> dict[str, Any]:
         expired = sum(1 for entry in self.memory.values() if entry.is_expired())
         before = self.stats["optimized_bytes_before"]
         after = self.stats["optimized_bytes_after"]
@@ -214,15 +214,13 @@ class EliteTokenBridge:
     def __init__(self, cache: EliteMemoryCache):
         self.cache = cache
 
-    def batch_requests(
-        self, requests: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
-        grouped: Dict[tuple, List[Dict[str, Any]]] = {}
+    def batch_requests(self, requests: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        grouped: dict[tuple, list[dict[str, Any]]] = {}
         for request in requests:
-            grouped.setdefault(
-                (request.get("type"), request.get("model")), []
-            ).append(copy.deepcopy(request))
-        result: List[Dict[str, Any]] = []
+            grouped.setdefault((request.get("type"), request.get("model")), []).append(
+                copy.deepcopy(request)
+            )
+        result: list[dict[str, Any]] = []
         for (request_type, model), members in grouped.items():
             if len(members) == 1:
                 result.append(members[0])
@@ -240,9 +238,7 @@ class EliteTokenBridge:
 
     def compress_context(self, context: str, compression_ratio: float = 0.1) -> str:
         if not 0 < compression_ratio <= 1:
-            raise ValueError(
-                "compression_ratio must be greater than 0 and at most 1"
-            )
+            raise ValueError("compression_ratio must be greater than 0 and at most 1")
         lines = context.splitlines()
         if len(lines) <= 3 or compression_ratio == 1:
             return context
@@ -253,8 +249,8 @@ class EliteTokenBridge:
         return "\n".join(selected)
 
     def optimize_request(
-        self, request: Dict[str, Any], ttl: int = 3600
-    ) -> Dict[str, Any]:
+        self, request: dict[str, Any], ttl: int = 3600
+    ) -> dict[str, Any]:
         original = copy.deepcopy(request)
         cache_key = f"request:sha256:{sha256_key(original)}"
         cached = self.cache.get(cache_key)
@@ -298,7 +294,7 @@ class EliteTokenBridge:
 class TokenSaverElite:
     VERSION = "3.1.0"
 
-    def __init__(self, home_dir: Optional[str] = None):
+    def __init__(self, home_dir: str | None = None):
         self.home = Path(home_dir or os.path.expanduser("~/.token_saver"))
         self.home.mkdir(parents=True, exist_ok=True)
         self.cache = EliteMemoryCache(str(self.home))
@@ -325,7 +321,7 @@ class TokenSaverElite:
         finally:
             connection.close()
 
-    def status(self) -> Dict[str, Any]:
+    def status(self) -> dict[str, Any]:
         return {
             "version": self.VERSION,
             "home": str(self.home),
@@ -338,9 +334,7 @@ class TokenSaverElite:
         status = self.status()
         cache = status["cache"]
         print(colored(f"TOKEN_SAVER v{status['version']}", Elite.CYAN))
-        print(
-            f"Cache entries: {cache['valid']} valid, {cache['expired']} expired"
-        )
+        print(f"Cache entries: {cache['valid']} valid, {cache['expired']} expired")
         print(f"Hits/misses: {cache['hits']}/{cache['misses']}")
         print(f"Measured bytes saved: {cache['measured_bytes_saved']}")
 

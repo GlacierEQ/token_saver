@@ -9,7 +9,7 @@ _REPO_ROOT = Path(__file__).resolve().parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from token_saver_elite_core import Elite, TokenSaverElite, log_elite  # noqa: E402
+from token_saver_elite_core import Elite, TokenSaverElite, log_elite
 
 
 class EliteCLI:
@@ -25,10 +25,7 @@ class EliteCLI:
         print(f"\n{Elite.BOLD}=== HEALTH CHECK ==={Elite.END}\n")
         print(f"Cache entries: {cache['valid']} valid, {cache['expired']} expired")
         print(f"Hits/misses:   {cache['hits']}/{cache['misses']}")
-        print(
-            f"Hit rate:      "
-            f"{(cache['hits'] / total * 100) if total else 0:.1f}%"
-        )
+        print(f"Hit rate:      {(cache['hits'] / total * 100) if total else 0:.1f}%")
         print(f"Measured bytes saved: {cache['measured_bytes_saved']}")
         print(f"Measurement unit:     {cache['measurement_unit']}")
         print(f"Disk usage:           {cache['disk_size_kb']} KB\n")
@@ -94,10 +91,7 @@ class EliteCLI:
         log_elite(f"Cache exported to {output}", "SUCCESS")
 
     def cmd_help(self, args=None):
-        print(
-            f"\n{Elite.BOLD}{Elite.CYAN}TOKEN_SAVER "
-            f"v{self.ts.VERSION}{Elite.END}\n"
-        )
+        print(f"\n{Elite.BOLD}{Elite.CYAN}TOKEN_SAVER v{self.ts.VERSION}{Elite.END}\n")
         print(
             "  status | health | cache_set | cache_get | "
             "optimize | clean | export | help"

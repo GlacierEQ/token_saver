@@ -10,7 +10,9 @@ from pathlib import Path
 class WatchdogDaemon:
     def __init__(self, repo_root: str | None = None):
         integrity_dir = Path(__file__).resolve().parent
-        self.repo_root = Path(repo_root).resolve() if repo_root else integrity_dir.parent
+        self.repo_root = (
+            Path(repo_root).resolve() if repo_root else integrity_dir.parent
+        )
         self.hash_store = integrity_dir / "file_hashes.json"
         self.baseline = {}
         if self.hash_store.exists():

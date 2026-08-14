@@ -46,7 +46,7 @@ class PromotionGrant:
         )
 
     @classmethod
-    def from_dict(cls, d: dict) -> "PromotionGrant":
+    def from_dict(cls, d: dict) -> PromotionGrant:
         return cls(
             repository=d["repository"],
             source_sha=d["source_sha"],
