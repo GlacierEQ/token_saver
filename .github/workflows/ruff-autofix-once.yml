@@ -30,110 +30,40 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
+          import re
           from pathlib import Path
 
           path = Path("scripts/operate.py")
           text = path.read_text(encoding="utf-8")
 
-          replacements = [
-              (
-                  "from __future__ import annotations\nimport importlib\nimport inspect\nimport json\nimport re\nimport sys\nfrom pathlib import Path\n",
-                  "from __future__ import annotations\n\nimport enum\nimport importlib\nimport inspect\nimport json\nimport re\nimport sys\nfrom pathlib import Path\n",
-                  "import block",
-              ),
-              (
-                  '        except Exception as e:\n            errors.append("%s: %s: %s" % (name, type(e).__name__, e))\n',
-                  '        except ImportError as exc:\n            errors.append(f"{name}: {type(exc).__name__}: {exc}")\n',
-                  "import exception",
-              ),
-              (
-                  '''def _is_local_class(mod, obj) -> bool:
-    try:
-        mod_name = getattr(obj, "__module__", None)
-        if mod_name in {mod.__name__, getattr(mod, "__package__", None)}:
-            return True
-        if getattr(mod, obj.__name__, None) is obj:
-            if mod_name and (
-                mod_name.startswith("typing")
-                or mod_name in {"builtins", "collections", "pathlib", "json", "sys", "os"}
-            ):
-                return False
-            return True
-        return False
-    except Exception:
-        return False
-''',
-                  '''def _is_local_class(mod, obj) -> bool:
-    mod_name = getattr(obj, "__module__", None)
-    if mod_name in {mod.__name__, getattr(mod, "__package__", None)}:
-        return True
-    if getattr(mod, obj.__name__, None) is not obj:
-        return False
-    return not (
-        mod_name
-        and (
-            mod_name.startswith("typing")
-            or mod_name in {"builtins", "collections", "pathlib", "json", "sys", "os"}
-        )
-    )
-''',
-                  "local class predicate",
-              ),
-              (
-                  '''    try:
-        import enum
-        if isinstance(value, enum.Enum):
-            # bare enum from a field is weak; allow only when method likely returns status
-            if called_name in {"status", "decide", "check", "verdict", "state"}:
-                return True
-            return False
-    except Exception:
-        pass
-''',
-                  '''    if isinstance(value, enum.Enum):
-        # Bare enum from a field is weak; allow only when a status-like call returned it.
-        return called_name in {"status", "decide", "check", "verdict", "state"}
-''',
-                  "enum content predicate",
-              ),
-              (
-                  '''        if inspect.isawaitable(result):
-            try:
-                result.close()
-            except Exception:
-                pass
-            return None
-        return result
-    except SystemExit:
-        return None
-    except Exception:
-        return None
-''',
-                  '''        if inspect.isawaitable(result):
-            close = getattr(result, "close", None)
-            if callable(close):
-                close()
-            return None
-        return result
-    except SystemExit:
-        return None
-    except (AttributeError, KeyError, OSError, RuntimeError, TypeError, ValueError):
-        return None
-''',
-                  "safe call probe",
-              ),
-          ]
-
-          for old, new, label in replacements:
+          def replace_once(old: str, new: str, label: str) -> None:
+              global text
               if old not in text:
                   raise SystemExit(f"expected {label} not found")
               text = text.replace(old, new, 1)
 
-          old = 'value.startswith("<function ") or value.startswith("<class ")'
-          if old not in text:
-              raise SystemExit("expected startswith predicate not found")
-          text = text.replace(old, 'value.startswith(("<function ", "<class "))', 1)
+          replace_once("from __future__ import annotations\nimport importlib\n", "from __future__ import annotations\n\nimport enum\nimport importlib\n", "import block")
+          replace_once('        except Exception as e:\n            errors.append("%s: %s: %s" % (name, type(e).__name__, e))\n', '        except ImportError as exc:\n            errors.append(f"{name}: {type(exc).__name__}: {exc}")\n', "import exception")
 
+          pattern = r'def _is_local_class\(mod, obj\) -> bool:\n    try:\n.*?    except Exception:\n        return False\n\n'
+          replacement = 'def _is_local_class(mod, obj) -> bool:\n    mod_name = getattr(obj, "__module__", None)\n    if mod_name in {mod.__name__, getattr(mod, "__package__", None)}:\n        return True\n    if getattr(mod, obj.__name__, None) is not obj:\n        return False\n    return not (\n        mod_name\n        and (\n            mod_name.startswith("typing")\n            or mod_name in {"builtins", "collections", "pathlib", "json", "sys", "os"}\n        )\n    )\n\n'
+          text, count = re.subn(pattern, replacement, text, count=1, flags=re.DOTALL)
+          if count != 1:
+              raise SystemExit("expected local class predicate not found")
+
+          pattern = r'    try:\n        import enum\n        if isinstance\(value, enum\.Enum\):\n.*?    except Exception:\n        pass\n'
+          replacement = '    if isinstance(value, enum.Enum):\n        # Bare enum from a field is weak; allow only when a status-like call returned it.\n        return called_name in {"status", "decide", "check", "verdict", "state"}\n'
+          text, count = re.subn(pattern, replacement, text, count=1, flags=re.DOTALL)
+          if count != 1:
+              raise SystemExit("expected enum content predicate not found")
+
+          pattern = r'        if inspect\.isawaitable\(result\):\n            try:\n                result\.close\(\)\n            except Exception:\n                pass\n            return None\n        return result\n    except SystemExit:\n        return None\n    except Exception:\n        return None\n'
+          replacement = '        if inspect.isawaitable(result):\n            close = getattr(result, "close", None)\n            if callable(close):\n                close()\n            return None\n        return result\n    except SystemExit:\n        return None\n    except (AttributeError, KeyError, OSError, RuntimeError, TypeError, ValueError):\n        return None\n'
+          text, count = re.subn(pattern, replacement, text, count=1)
+          if count != 1:
+              raise SystemExit("expected safe call probe not found")
+
+          replace_once('value.startswith("<function ") or value.startswith("<class ")', 'value.startswith(("<function ", "<class "))', "startswith predicate")
           path.write_text(text, encoding="utf-8")
           PY
 
