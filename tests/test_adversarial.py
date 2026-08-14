@@ -190,7 +190,7 @@ class AdversarialEliteTests(unittest.TestCase):
             with self.assertRaises(
                 (AttributeError, TypeError, ImportError, ValueError, KeyError)
             ):
-                getattr(mod, "__elite_missing_surface__")
+                self.assertIsNone(mod.__elite_missing_surface__)
 
 
 if __name__ == "__main__":
