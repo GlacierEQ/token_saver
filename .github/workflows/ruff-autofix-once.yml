@@ -35,122 +35,104 @@ jobs:
           path = Path("scripts/operate.py")
           text = path.read_text(encoding="utf-8")
 
-          old = '''from __future__ import annotations
-          import importlib
-          import inspect
-          import json
-          import re
-          import sys
-          from pathlib import Path
-          '''.replace("          ", "")
-          new = '''from __future__ import annotations
+          replacements = [
+              (
+                  "from __future__ import annotations\nimport importlib\nimport inspect\nimport json\nimport re\nimport sys\nfrom pathlib import Path\n",
+                  "from __future__ import annotations\n\nimport enum\nimport importlib\nimport inspect\nimport json\nimport re\nimport sys\nfrom pathlib import Path\n",
+                  "import block",
+              ),
+              (
+                  '        except Exception as e:\n            errors.append("%s: %s: %s" % (name, type(e).__name__, e))\n',
+                  '        except ImportError as exc:\n            errors.append(f"{name}: {type(exc).__name__}: {exc}")\n',
+                  "import exception",
+              ),
+              (
+                  '''def _is_local_class(mod, obj) -> bool:
+    try:
+        mod_name = getattr(obj, "__module__", None)
+        if mod_name in {mod.__name__, getattr(mod, "__package__", None)}:
+            return True
+        if getattr(mod, obj.__name__, None) is obj:
+            if mod_name and (
+                mod_name.startswith("typing")
+                or mod_name in {"builtins", "collections", "pathlib", "json", "sys", "os"}
+            ):
+                return False
+            return True
+        return False
+    except Exception:
+        return False
+''',
+                  '''def _is_local_class(mod, obj) -> bool:
+    mod_name = getattr(obj, "__module__", None)
+    if mod_name in {mod.__name__, getattr(mod, "__package__", None)}:
+        return True
+    if getattr(mod, obj.__name__, None) is not obj:
+        return False
+    return not (
+        mod_name
+        and (
+            mod_name.startswith("typing")
+            or mod_name in {"builtins", "collections", "pathlib", "json", "sys", "os"}
+        )
+    )
+''',
+                  "local class predicate",
+              ),
+              (
+                  '''    try:
+        import enum
+        if isinstance(value, enum.Enum):
+            # bare enum from a field is weak; allow only when method likely returns status
+            if called_name in {"status", "decide", "check", "verdict", "state"}:
+                return True
+            return False
+    except Exception:
+        pass
+''',
+                  '''    if isinstance(value, enum.Enum):
+        # Bare enum from a field is weak; allow only when a status-like call returned it.
+        return called_name in {"status", "decide", "check", "verdict", "state"}
+''',
+                  "enum content predicate",
+              ),
+              (
+                  '''        if inspect.isawaitable(result):
+            try:
+                result.close()
+            except Exception:
+                pass
+            return None
+        return result
+    except SystemExit:
+        return None
+    except Exception:
+        return None
+''',
+                  '''        if inspect.isawaitable(result):
+            close = getattr(result, "close", None)
+            if callable(close):
+                close()
+            return None
+        return result
+    except SystemExit:
+        return None
+    except (AttributeError, KeyError, OSError, RuntimeError, TypeError, ValueError):
+        return None
+''',
+                  "safe call probe",
+              ),
+          ]
 
-          import enum
-          import importlib
-          import inspect
-          import json
-          import re
-          import sys
-          from pathlib import Path
-          '''.replace("          ", "")
+          for old, new, label in replacements:
+              if old not in text:
+                  raise SystemExit(f"expected {label} not found")
+              text = text.replace(old, new, 1)
+
+          old = 'value.startswith("<function ") or value.startswith("<class ")'
           if old not in text:
-              raise SystemExit("expected import block not found")
-          text = text.replace(old, new, 1)
-
-          old = '''        except Exception as e:
-                      errors.append("%s: %s: %s" % (name, type(e).__name__, e))
-          '''.replace("          ", "")
-          new = '''        except ImportError as exc:
-                      errors.append(f"{name}: {type(exc).__name__}: {exc}")
-          '''.replace("          ", "")
-          if old not in text:
-              raise SystemExit("expected import exception block not found")
-          text = text.replace(old, new, 1)
-
-          old = '''def _is_local_class(mod, obj) -> bool:
-              try:
-                  mod_name = getattr(obj, "__module__", None)
-                  if mod_name in {mod.__name__, getattr(mod, "__package__", None)}:
-                      return True
-                  if getattr(mod, obj.__name__, None) is obj:
-                      if mod_name and (
-                          mod_name.startswith("typing")
-                          or mod_name in {"builtins", "collections", "pathlib", "json", "sys", "os"}
-                      ):
-                          return False
-                      return True
-                  return False
-              except Exception:
-                  return False
-          '''.replace("          ", "")
-          new = '''def _is_local_class(mod, obj) -> bool:
-              mod_name = getattr(obj, "__module__", None)
-              if mod_name in {mod.__name__, getattr(mod, "__package__", None)}:
-                  return True
-              if getattr(mod, obj.__name__, None) is not obj:
-                  return False
-              return not (
-                  mod_name
-                  and (
-                      mod_name.startswith("typing")
-                      or mod_name
-                      in {"builtins", "collections", "pathlib", "json", "sys", "os"}
-                  )
-              )
-          '''.replace("          ", "")
-          if old not in text:
-              raise SystemExit("expected local-class block not found")
-          text = text.replace(old, new, 1)
-
-          old = '''    try:
-                  import enum
-                  if isinstance(value, enum.Enum):
-                      # bare enum from a field is weak; allow only when method likely returns status
-                      if called_name in {"status", "decide", "check", "verdict", "state"}:
-                          return True
-                      return False
-              except Exception:
-                  pass
-          '''.replace("          ", "")
-          new = '''    if isinstance(value, enum.Enum):
-                  # Bare enum from a field is weak; allow only when a status-like call returned it.
-                  return called_name in {"status", "decide", "check", "verdict", "state"}
-          '''.replace("          ", "")
-          if old not in text:
-              raise SystemExit("expected enum block not found")
-          text = text.replace(old, new, 1)
-
-          old = '''        if inspect.isawaitable(result):
-                      try:
-                          result.close()
-                      except Exception:
-                          pass
-                      return None
-                  return result
-              except SystemExit:
-                  return None
-              except Exception:
-                  return None
-          '''.replace("          ", "")
-          new = '''        if inspect.isawaitable(result):
-                      close = getattr(result, "close", None)
-                      if callable(close):
-                          close()
-                      return None
-                  return result
-              except SystemExit:
-                  return None
-              except (AttributeError, KeyError, OSError, RuntimeError, TypeError, ValueError):
-                  return None
-          '''.replace("          ", "")
-          if old not in text:
-              raise SystemExit("expected safe-call block not found")
-          text = text.replace(old, new, 1)
-
-          text = text.replace(
-              'value.startswith("<function ") or value.startswith("<class ")',
-              'value.startswith(("<function ", "<class "))',
-          )
+              raise SystemExit("expected startswith predicate not found")
+          text = text.replace(old, 'value.startswith(("<function ", "<class "))', 1)
 
           path.write_text(text, encoding="utf-8")
           PY
