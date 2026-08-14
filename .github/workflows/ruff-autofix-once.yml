@@ -1,0 +1,174 @@
+name: One-shot Ruff repair
+
+on:
+  push:
+    branches:
+      - fix/reusable-ci-ruff-20260813
+    paths:
+      - .github/workflows/ruff-autofix-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/reusable-ci-ruff-20260813
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ruff
+        run: python -m pip install --upgrade ruff
+
+      - name: Repair fail-closed probe exception handling
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/operate.py")
+          text = path.read_text(encoding="utf-8")
+
+          old = '''from __future__ import annotations
+          import importlib
+          import inspect
+          import json
+          import re
+          import sys
+          from pathlib import Path
+          '''.replace("          ", "")
+          new = '''from __future__ import annotations
+
+          import enum
+          import importlib
+          import inspect
+          import json
+          import re
+          import sys
+          from pathlib import Path
+          '''.replace("          ", "")
+          if old not in text:
+              raise SystemExit("expected import block not found")
+          text = text.replace(old, new, 1)
+
+          old = '''        except Exception as e:
+                      errors.append("%s: %s: %s" % (name, type(e).__name__, e))
+          '''.replace("          ", "")
+          new = '''        except ImportError as exc:
+                      errors.append(f"{name}: {type(exc).__name__}: {exc}")
+          '''.replace("          ", "")
+          if old not in text:
+              raise SystemExit("expected import exception block not found")
+          text = text.replace(old, new, 1)
+
+          old = '''def _is_local_class(mod, obj) -> bool:
+              try:
+                  mod_name = getattr(obj, "__module__", None)
+                  if mod_name in {mod.__name__, getattr(mod, "__package__", None)}:
+                      return True
+                  if getattr(mod, obj.__name__, None) is obj:
+                      if mod_name and (
+                          mod_name.startswith("typing")
+                          or mod_name in {"builtins", "collections", "pathlib", "json", "sys", "os"}
+                      ):
+                          return False
+                      return True
+                  return False
+              except Exception:
+                  return False
+          '''.replace("          ", "")
+          new = '''def _is_local_class(mod, obj) -> bool:
+              mod_name = getattr(obj, "__module__", None)
+              if mod_name in {mod.__name__, getattr(mod, "__package__", None)}:
+                  return True
+              if getattr(mod, obj.__name__, None) is not obj:
+                  return False
+              return not (
+                  mod_name
+                  and (
+                      mod_name.startswith("typing")
+                      or mod_name
+                      in {"builtins", "collections", "pathlib", "json", "sys", "os"}
+                  )
+              )
+          '''.replace("          ", "")
+          if old not in text:
+              raise SystemExit("expected local-class block not found")
+          text = text.replace(old, new, 1)
+
+          old = '''    try:
+                  import enum
+                  if isinstance(value, enum.Enum):
+                      # bare enum from a field is weak; allow only when method likely returns status
+                      if called_name in {"status", "decide", "check", "verdict", "state"}:
+                          return True
+                      return False
+              except Exception:
+                  pass
+          '''.replace("          ", "")
+          new = '''    if isinstance(value, enum.Enum):
+                  # Bare enum from a field is weak; allow only when a status-like call returned it.
+                  return called_name in {"status", "decide", "check", "verdict", "state"}
+          '''.replace("          ", "")
+          if old not in text:
+              raise SystemExit("expected enum block not found")
+          text = text.replace(old, new, 1)
+
+          old = '''        if inspect.isawaitable(result):
+                      try:
+                          result.close()
+                      except Exception:
+                          pass
+                      return None
+                  return result
+              except SystemExit:
+                  return None
+              except Exception:
+                  return None
+          '''.replace("          ", "")
+          new = '''        if inspect.isawaitable(result):
+                      close = getattr(result, "close", None)
+                      if callable(close):
+                          close()
+                      return None
+                  return result
+              except SystemExit:
+                  return None
+              except (AttributeError, KeyError, OSError, RuntimeError, TypeError, ValueError):
+                  return None
+          '''.replace("          ", "")
+          if old not in text:
+              raise SystemExit("expected safe-call block not found")
+          text = text.replace(old, new, 1)
+
+          text = text.replace(
+              'value.startswith("<function ") or value.startswith("<class ")',
+              'value.startswith(("<function ", "<class "))',
+          )
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Apply safe Ruff fixes and canonical formatting
+        run: |
+          ruff check . --fix
+          ruff format .
+          ruff check .
+          ruff format --check .
+
+      - name: Remove one-shot workflow and commit repairs
+        shell: bash
+        run: |
+          git rm .github/workflows/ruff-autofix-once.yml
+          git config user.name "GlacierEQ CI Repair"
+          git config user.email "glacier.equilibrium@gmail.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(ci): canonicalize Python quality gate"
+          git push origin HEAD:fix/reusable-ci-ruff-20260813
