@@ -27,7 +27,7 @@ def run() -> dict:
         cache = EliteMemoryCache(str(Path(tmp) / "cache"))
         bridge = EliteTokenBridge(cache)
         miss = cache.get("missing")
-        cache.set("known", {}, ttl=3600, source="benchmark")
+        cache.set("known", {"fixture": "known"}, ttl=3600, source="benchmark")
         hit = cache.get("known")
         cache_result = {
             "miss_is_none": miss is None,
