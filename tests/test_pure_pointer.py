@@ -1,7 +1,7 @@
-from dataclasses import replace
-from concurrent.futures import ThreadPoolExecutor
 import sys
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -57,7 +57,9 @@ class PurePointerTests(unittest.TestCase):
             root = Path(directory)
             body = "concurrent payload" * 100
             with ThreadPoolExecutor(max_workers=8) as pool:
-                pointers = list(pool.map(lambda _: externalize(body, root, "same"), range(24)))
+                pointers = list(
+                    pool.map(lambda _: externalize(body, root, "same"), range(24))
+                )
             self.assertTrue(all(resolve(pointer, root) == body for pointer in pointers))
             self.assertEqual(len({pointer.sha256 for pointer in pointers}), 1)
             self.assertEqual(list(root.glob("*.tmp")), [])

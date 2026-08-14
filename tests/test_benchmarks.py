@@ -1,11 +1,12 @@
 """Benchmark assertions against shipped Token Saver APIs (measured, not frozen folklore)."""
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "benchmarks"))
-from benchmark_token_saver import run  # noqa: E402
+from benchmark_token_saver import run
 
 
 def test_deterministic_benchmarks():
