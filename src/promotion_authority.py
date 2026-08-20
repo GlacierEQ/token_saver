@@ -12,12 +12,27 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
-# Reference local operator secret (NOT production). Documented for re-verification.
-LOCAL_OPERATOR_SECRET = b"glaciereq-local-operator-promotion-authority-v1"
+PROMOTION_SECRET_ENV = "TOKEN_SAVER_PROMOTION_SECRET"
+
+
+def promotion_secret_from_environment(
+    environ: dict[str, str] | None = None,
+) -> bytes | None:
+    """Return an explicitly injected promotion secret, never a source default.
+
+    A checked-in value would let any clone forge a receipt-bound grant. Local
+    demonstrations must supply a non-production secret deliberately through the
+    environment or pass it directly to ``verify_bound_grant``.
+    """
+    value = (environ if environ is not None else os.environ).get(PROMOTION_SECRET_ENV)
+    if not value:
+        return None
+    return value.encode("utf-8")
 
 
 def _digest(obj: object) -> str:
@@ -98,7 +113,7 @@ def verify_bound_grant(
     grant_dict: dict,
     proof_receipt_path: str | Path,
     *,
-    secret: bytes = LOCAL_OPERATOR_SECRET,
+    secret: bytes | None = None,
     now: float | None = None,
 ) -> tuple[bool, str | None]:
     """Verify a machine/promotion_authority.json grant against a proof receipt file.
@@ -106,9 +121,11 @@ def verify_bound_grant(
     Checks:
       1) proof_receipt_digest == sha256(proof file bytes)
       2) grant.source_sha == proof.source_sha
-      3) HMAC verify with operator secret
+      3) HMAC verify with an explicitly supplied operator secret
     Fail-closed on any mismatch.
     """
+    if not secret:
+        return False, "PROMOTION_SECRET_REQUIRED"
     path = Path(proof_receipt_path)
     if not path.is_file():
         return False, "PROOF_RECEIPT_MISSING"
