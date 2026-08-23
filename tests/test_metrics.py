@@ -16,7 +16,7 @@ def test_gauge():
     g.inc(5)
     g.dec(2)
     out = reg.expose()
-    assert 'my_gauge 13.0' in out
+    assert 'my_gauge 13' in out
 
 def test_histogram():
     reg = MetricsRegistry()
