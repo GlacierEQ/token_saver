@@ -292,7 +292,7 @@ class EliteTokenBridge:
 
 
 class TokenSaverElite:
-    VERSION = "4.0.0"
+    VERSION = "4.1.0"
 
     def __init__(self, home_dir: str | None = None):
         self.home = Path(home_dir or os.path.expanduser("~/.token_saver"))

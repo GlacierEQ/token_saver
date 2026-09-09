@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "token-saver"
+version = "4.1.0"
+description = "Dependency-free, measurement-honest, distributed token optimization and pure-pointer externalization for LLM agent infrastructure."
+readme = "README.md"
+license = { text = "Proprietary" }
+authors = [{ name = "Casey del Carpio Barton / GlacierEQ" }]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio",
+]
+
+[project.scripts]
+token-saver = "token_saver_elite_cli:main"
+token-saver-mcp = "mcp.server:main"
+token-saver-sidecar = "mastermind_sidecar:main"
+token-saver-gateway = "server.gateway:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

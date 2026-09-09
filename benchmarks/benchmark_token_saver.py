@@ -65,6 +65,10 @@ def run() -> dict:
         }
 
 
+run_all_benchmarks = run
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path)

@@ -1,7 +1,10 @@
 import math
-from collections import Counter
 import re
-from .token_counter import estimate_tokens
+from collections import Counter
+try:
+    from .token_counter import estimate_tokens
+except (ImportError, ValueError):
+    from token_counter import estimate_tokens
 
 
 def score_lines(text: str) -> list[tuple[int, float, str]]:
@@ -115,3 +118,20 @@ def compress_to_budget(text: str, max_tokens: int, model: str = 'gpt-4') -> str:
     selected_indices.sort()
     lines = text.split('\n')
     return '\n'.join(lines[idx] for idx in selected_indices)
+
+
+class SemanticCompressor:
+    """Object-oriented wrapper around semantic compression utilities."""
+
+    @staticmethod
+    def score_lines(text: str) -> list[tuple[int, float, str]]:
+        return score_lines(text)
+
+    @staticmethod
+    def compress(text: str, ratio: float = 0.3, preserve_order: bool = True) -> str:
+        return compress(text, ratio=ratio, preserve_order=preserve_order)
+
+    @staticmethod
+    def compress_to_budget(text: str, max_tokens: int, model: str = "gpt-4") -> str:
+        return compress_to_budget(text, max_tokens=max_tokens, model=model)
+

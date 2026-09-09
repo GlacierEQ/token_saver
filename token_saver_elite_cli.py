@@ -90,11 +90,45 @@ class EliteCLI:
         )
         log_elite(f"Cache exported to {output}", "SUCCESS")
 
+    def cmd_sovereign_externalize(self, args):
+        if not args:
+            log_elite("Usage: sovereign_externalize LABEL CONTENT", "ERROR")
+            return
+        label = args[0]
+        content = " ".join(args[1:]) if len(args) > 1 else sys.stdin.read()
+        from src.sovereign_bridge import SovereignTokenBridge
+        bridge = SovereignTokenBridge(storage_dir=self.ts.home / "token_saver_work")
+        receipt = bridge.externalize_payload(label, content)
+        print(json.dumps(receipt.to_dict(), indent=2))
+
+    def cmd_unified_optimize(self, args):
+        if not args:
+            log_elite("Usage: unified_optimize JSON_PAYLOAD_OR_FILE", "ERROR")
+            return
+        raw = " ".join(args)
+        if Path(raw).exists():
+            payload = json.loads(Path(raw).read_text(encoding="utf-8"))
+        else:
+            payload = json.loads(raw)
+        from src.unified_token_engine import UnifiedTokenEngine
+        engine = UnifiedTokenEngine(work_dir=self.ts.home / "token_saver_work")
+        res = engine.optimize_message_payload(payload)
+        print(json.dumps(res, indent=2))
+
+    def cmd_benchmark(self, args=None):
+        try:
+            from benchmarks.benchmark_token_saver import run_all_benchmarks as run_bench
+        except ImportError:
+            from benchmarks.benchmark_token_saver import run as run_bench
+        results = run_bench()
+        print(json.dumps(results, indent=2))
+
     def cmd_help(self, args=None):
         print(f"\n{Elite.BOLD}{Elite.CYAN}TOKEN_SAVER v{self.ts.VERSION}{Elite.END}\n")
         print(
-            "  status | health | cache_set | cache_get | "
-            "optimize | clean | export | help"
+            "  status | health | cache_set | cache_get | optimize |\n"
+            "  sovereign_externalize | unified_optimize | benchmark |\n"
+            "  clean | export | help"
         )
 
     def run(self, args):

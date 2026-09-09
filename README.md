@@ -1,13 +1,20 @@
-# Token Saver v4.0 — Distributed Context Optimization Engine
+# Token Saver v4.1 — Sovereign Dual-Stage Optimization & Pure-Pointer Engine
 
-**Dependency-free, measurement-honest, distributed token optimization for LLM agent infrastructure.**
+**Dependency-free, measurement-honest, distributed token optimization, pure-pointer offloading, and APEX receipt chaining for LLM agent infrastructure.**
 
-Zero external dependencies. 52 tests. Every claim is measured.
+Zero external dependencies. 58 tests. Every claim is measured.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
+│  APEX Unified Token Engine (src/unified_token_engine.py)│
+│  Stage 1: Macro Pure Pointer Offload (>500B)            │
+│  Stage 2: Micro Context Compression (+ Mermicorn fallback)│
+├─────────────────────────────────────────────────────────┤
+│  APEX Sovereign Bridge (src/sovereign_bridge.py)        │
+│  SHA-256 Content-Addressed Offload + Receipt Chaining   │
+├─────────────────────────────────────────────────────────┤
 │  MCP Tool Server (JSON-RPC 2.0 over stdio)              │
 │  compress_context · externalize · optimize · status      │
 ├─────────────────────────────────────────────────────────┤
@@ -31,6 +38,8 @@ Zero external dependencies. 52 tests. Every claim is measured.
 
 | Component | File | What It Does |
 |---|---|---|
+| **Unified Token Engine** | `src/unified_token_engine.py` | Orchestrates dual-stage optimization: Macro PurePointer offloading (>500B) and Micro context compression. Seamlessly integrates with Mermicorn context compression when detected. |
+| **Sovereign Bridge** | `src/sovereign_bridge.py` | Content-addressed SHA-256 storage (`sha256://<hash>`), automated payload inspection, pointer resolution with cryptographic integrity checks, and immutable receipt chaining (`TOKEN_SAVER_CHAIN.jsonl`). |
 | **Token Counter** | `src/token_counter.py` | Estimates LLM token counts via calibrated character ratios. Falls back to exact `tiktoken` counts when available. |
 | **Semantic Compressor** | `src/semantic_compressor.py` | TF-IDF weighted line scoring with structural marker bonuses. Selects most important lines within a token budget. |
 | **Pure Pointer** | `src/pure_pointer.py` | Content-addressed file offloading. SHA-256 integrity verification. Path traversal rejection. |
@@ -50,17 +59,26 @@ Zero external dependencies. 52 tests. Every claim is measured.
 | Workload | Result |
 |---|---|
 | Cache miss → hit | 1 miss, 1 hit, 50 internal accounting tokens saved |
-| Context sampling | 100 input lines → 12 output lines; 3,089 → 369 bytes |
+| Context sampling | 100 input lines → 10 output lines; 3,089 → 307 bytes |
 | Same-type/model batching | 3 requests → 1; 300 → 210 estimated tokens |
-| Pointer externalization | 6,000 → 58 bytes; 99.03% byte reduction |
+| Pointer externalization | 6,000 → 165 bytes; 97.25% byte reduction |
 
 These are reproducible fixture results, not guarantees for arbitrary workloads.
 
 ## Quick Start
 
 ```bash
+# Optional editable install (PEP 621 / pyproject.toml)
+pip install -e . --no-deps
+
 # Run the cache + optimization engine
 python3 token_saver_elite_core.py
+
+# Sovereign CLI Commands
+python3 token_saver_elite_cli.py health
+python3 token_saver_elite_cli.py benchmark
+python3 token_saver_elite_cli.py sovereign_externalize <label> <content>
+python3 token_saver_elite_cli.py unified_optimize '{"context": "text..."}'
 
 # Start the HTTP gateway
 python3 -m server.gateway --port 8400
@@ -71,7 +89,7 @@ python3 -m mcp.server
 # Run the integrity watchdog
 python3 -m src.watchdog
 
-# Run all 52 tests
+# Run all 58 tests
 python3 -m pytest tests/ -v
 ```
 
@@ -79,12 +97,12 @@ python3 -m pytest tests/ -v
 
 ```
 Core engine: Zero external dependencies (stdlib only)
-Optional:    tiktoken (exact GPT token counts)
+Optional:    tiktoken (exact GPT token counts), mermicorn-token-saver
 ```
 
 ## Test Coverage
 
-52 tests across 13 test files. All assertions are real — no stubs, no `return True`, no in-test simulators.
+58 tests across 15 test files. All assertions are real — no stubs, no `return True`, no in-test simulators.
 
 ## License
 
