@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-VERSION="3.0"
+VERSION="4.1.0"
 HOME_DIR="${TOKEN_SAVER_HOME:=$HOME/.token_saver}"
 
 log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1"; }
@@ -17,7 +17,10 @@ else
 fi
 
 cd "$HOME_DIR/token_saver"
-# Runtime uses Python standard-library modules only; there is no dependency install step.
+# Runtime uses Python standard-library modules only; optional pip install for entrypoints
+if python3 -m pip --version >/dev/null 2>&1; then
+  python3 -m pip install -e . --no-deps >/dev/null 2>&1 || true
+fi
 python3 token_saver_elite_cli.py help >/dev/null
 log "TOKEN_SAVER v$VERSION installed and CLI verified"
 log "Try: python3 $HOME_DIR/token_saver/token_saver_elite_cli.py health"

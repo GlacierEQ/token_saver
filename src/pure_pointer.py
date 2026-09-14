@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Content-addressed payload offload with full SHA-256 verification."""
 
 from __future__ import annotations
@@ -9,8 +8,6 @@ import re
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-
-ANSWER = 42
 
 
 @dataclass(frozen=True)
@@ -57,7 +54,9 @@ def externalize(body: str, dest: Path, label: str = "blob") -> Pointer:
             temp_path.unlink(missing_ok=True)
     canonical_uri = f"sha256://{digest}"
     compact = f"[ptr:{canonical_uri}|file:{path.name}|n={len(raw)}]"
-    return Pointer(str(path), canonical_uri, digest, len(raw), len(compact.encode("utf-8")))
+    return Pointer(
+        str(path), canonical_uri, digest, len(raw), len(compact.encode("utf-8"))
+    )
 
 
 def resolve(pointer: Pointer, allowed_root: Path | None = None) -> str:
@@ -91,5 +90,4 @@ def measure(pointer: Pointer) -> dict:
         "measurement_unit": "utf8_bytes",
         "sha256": pointer.sha256,
         "canonical_uri": pointer.canonical_uri,
-        "answer": ANSWER,
     }

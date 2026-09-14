@@ -1,0 +1,25 @@
+{
+  "schema": "glaciereq.operability-receipt.v1",
+  "repository": "GlacierEQ/token_saver",
+  "at": "2026-08-10T04:12Z",
+  "source_sha": "f285c6963f2fcbaf22c8cdeda8e3454efdb218819a2732f33ca77c88e48b36f0",
+  "entry": "scripts/operate.py",
+  "primary_output": {
+    "module": "pure_pointer",
+    "ok": true,
+    "repository": "GlacierEQ/token_saver",
+    "smoke": {
+      "args": [
+        "'elite operate sample body elite operate",
+        "PosixPath('/var/folders/w3/hldw78112gzbv"
+      ],
+      "content_checked": true,
+      "invoked": true,
+      "kind": "fn",
+      "name": "externalize",
+      "result": "Pointer(path='/private/var/folders/w3/hldw78112gzbvgd2_pj1bg3h0000gn/T/elite_op_mpg5gekh/blob_21be05c7eba6cdbe12623d8c9f0a98d88f816f60fb192816a35c4691526e396e.txt', canonical_uri='sha256://21be05c7eba6cdbe12623d8c9f0a98d88f816f60fb192816a35c4691526e396e', sha256='21be05c7eba6cdbe12623d8c9f0a98d88f816f60fb192816a35c4691526e396e', bytes_in=520, bytes_out=164)"
+    }
+  },
+  "dual_run_ok": true,
+  "result": "PASS"
+}

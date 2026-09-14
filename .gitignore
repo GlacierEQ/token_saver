@@ -8,3 +8,5 @@ __pycache__/
 *.db
 cache.json
 cache.tmp
+TOKEN_SAVER_CHAIN.jsonl
+token_saver_work/

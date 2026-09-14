@@ -1,0 +1,11 @@
+{
+  "schema": "glaciereq.promotion-authority-grant.v1",
+  "repository": "GlacierEQ/token_saver",
+  "source_sha": "f285c6963f2fcbaf22c8cdeda8e3454efdb218819a2732f33ca77c88e48b36f0",
+  "proof_receipt_digest": "92866ea2ab2970ae2226473fa737d74494e1b0c40a82bd011eae44b61a2d9db0",
+  "not_after": 1788927149.234226,
+  "mac": "a7cbb44b02ac8465dd75d20fdb9e1a4877fbdcaf17bb0d762876f8f669b08fb9",
+  "issuer": "local_operator_promotion_authority",
+  "verified": true,
+  "secret_ref": "src/promotion_authority.py::LOCAL_OPERATOR_SECRET"
+}
