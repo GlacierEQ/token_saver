@@ -37,7 +37,7 @@ def run() -> dict:
             "optimized_bytes_before": cache.stats["optimized_bytes_before"],
             "optimized_bytes_after": cache.stats["optimized_bytes_after"],
         }
-        context = "\n".join(f"line-{i}: deterministic context" for i in range(100))
+        context = "\n\n".join(f"line-{i}: deterministic context" for i in range(100))
         compressed = bridge.compress_context(context, compression_ratio=0.1)
         compression_result = {
             "input_lines": len(context.splitlines()),

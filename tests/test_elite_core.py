@@ -27,7 +27,7 @@ class EliteCoreTests(unittest.TestCase):
             bridge = EliteTokenBridge(cache)
             request = {
                 "query": "q",
-                "context": "\n".join(f"line-{i}" for i in range(20)),
+                "context": "\n\n".join(f"line-{i} padding padding padding padding padding padding" for i in range(50)),
             }
             original = copy.deepcopy(request)
             first = bridge.optimize_request(request)

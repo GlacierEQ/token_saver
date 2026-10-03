@@ -18,7 +18,7 @@ def test_deterministic_benchmarks():
     assert cache["misses"] == 1
 
     comp = result["compression"]
-    assert comp["input_lines"] == 100
+    assert comp["input_lines"] == 199
     assert 3 <= comp["output_lines"] < comp["input_lines"]
     assert comp["output_bytes"] < comp["input_bytes"]
 

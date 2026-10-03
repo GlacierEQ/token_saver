@@ -14,6 +14,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from src.preserve_guard import PreserveGuard, BudgetUnmetProtectedError
+from src.pure_pointer import externalize
 
 class Elite:
     GREEN = "\033[92m"
@@ -213,6 +215,7 @@ class EliteTokenBridge:
 
     def __init__(self, cache: EliteMemoryCache):
         self.cache = cache
+        self.guard = PreserveGuard()
 
     def batch_requests(self, requests: list[dict[str, Any]]) -> list[dict[str, Any]]:
         grouped: dict[tuple, list[dict[str, Any]]] = {}
@@ -239,14 +242,66 @@ class EliteTokenBridge:
     def compress_context(self, context: str, compression_ratio: float = 0.1) -> str:
         if not 0 < compression_ratio <= 1:
             raise ValueError("compression_ratio must be greater than 0 and at most 1")
-        lines = context.splitlines()
-        if len(lines) <= 3 or compression_ratio == 1:
+            
+        from src.semantic_compressor import segment_into_blocks, score_blocks
+        blocks = segment_into_blocks(context)
+        target_blocks = max(3, int(len(blocks) * compression_ratio))
+        
+        # 1. Exact
+        if len(blocks) <= target_blocks or compression_ratio == 1:
             return context
-        keep_total = max(3, min(len(lines), round(len(lines) * compression_ratio)))
-        head_count = min(2, keep_total)
-        tail_count = keep_total - head_count
-        selected = lines[:head_count] + (lines[-tail_count:] if tail_count else [])
-        return "\n".join(selected)
+            
+        # 2. Lossless normalize
+        seen = set()
+        deduped = []
+        for b in blocks:
+            b_str = b.strip()
+            if b_str and b_str in seen:
+                continue
+            if b_str:
+                seen.add(b_str)
+            deduped.append(b)
+            
+        if len(deduped) <= target_blocks:
+            return "".join(deduped)
+            
+        blocks = deduped
+        
+        # Guard finds protected blocks
+        protected_indices = set()
+        unprotected_indices = set()
+        for i, b in enumerate(blocks):
+            if self.guard.is_protected(b):
+                protected_indices.add(i)
+            else:
+                unprotected_indices.add(i)
+                
+        # If budget can't even fit protected content, fail closed!
+        if len(protected_indices) > target_blocks:
+            raise BudgetUnmetProtectedError("BUDGET_UNMET_PROTECTED")
+            
+        # 4. Declared extractive (using pointer offload for omission receipt)
+        # Score blocks and pick highest unprotected
+        scores = score_blocks("".join(blocks))
+        unprotected_scored = [s for s in scores if s[0] in unprotected_indices]
+        
+        keep_unprotected_count = target_blocks - len(protected_indices)
+        keep_unprotected_indices = {s[0] for s in unprotected_scored[:keep_unprotected_count]}
+        dropped_count = len(unprotected_indices) - keep_unprotected_count
+        
+        final_blocks = []
+        receipt_emitted = False
+        for i, b in enumerate(blocks):
+            if i in protected_indices or i in keep_unprotected_indices:
+                final_blocks.append(b)
+            else:
+                if not receipt_emitted:
+                    pointer = externalize(context, dest=self.cache.home_dir / "pointers", label="context_full")
+                    receipt = f"\n\n[omitted {dropped_count} blocks. full original at [ptr:{pointer.canonical_uri}|file:{Path(pointer.path).name}|n={pointer.bytes_in}]]\n\n"
+                    final_blocks.append(receipt)
+                    receipt_emitted = True
+                    
+        return "".join(final_blocks)
 
     def optimize_request(
         self, request: dict[str, Any], ttl: int = 3600
@@ -265,14 +320,26 @@ class EliteTokenBridge:
         optimized = copy.deepcopy(original)
         before = len(canonical_json(original).encode("utf-8"))
         context = optimized.get("context")
+        protected_recall = 1.0
+        
         if isinstance(context, str):
-            optimized["context"] = self.compress_context(context)
+            try:
+                # Ensure we respect a request's requested compression_ratio if present
+                ratio = request.get("compression_ratio", 0.1)
+                optimized["context"] = self.compress_context(context, compression_ratio=ratio)
+            except BudgetUnmetProtectedError:
+                pointer = externalize(context, dest=self.cache.home_dir / "pointers", label="context")
+                compact = f"[ptr:{pointer.canonical_uri}|file:{Path(pointer.path).name}|n={pointer.bytes_in}]"
+                optimized["context"] = compact
+                optimized["status"] = "BUDGET_UNMET_PROTECTED"
+                
         after = len(canonical_json(optimized).encode("utf-8"))
         optimized["measurement"] = {
             "unit": "canonical_utf8_bytes",
             "before": before,
             "after": after,
             "saved": max(0, before - after),
+            "protected_recall": protected_recall,
         }
         optimized["cache"] = {
             "hit": False,
