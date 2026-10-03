@@ -55,12 +55,12 @@ class PeerRegistry:
 
 class UDPBroadcaster:
     """Sends periodic UDP announcements."""
-    def __init__(self, gateway_port: int, broadcast_port: int = 8401, interval: float = 5.0):
+    def __init__(self, gateway_port: int, broadcast_port: int = 8401, interval: float = 5.0, targets: List[str] = None):
         self.gateway_port = gateway_port
         self.broadcast_port = broadcast_port
         self.interval = interval
+        self.targets = targets or []
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         self.running = False
         self.thread: Optional[threading.Thread] = None
 
@@ -85,10 +85,11 @@ class UDPBroadcaster:
         }).encode('utf-8')
         
         while self.running:
-            try:
-                self.sock.sendto(payload, ('<broadcast>', self.broadcast_port))
-            except Exception:
-                pass
+            for target in self.targets:
+                try:
+                    self.sock.sendto(payload, (target, self.broadcast_port))
+                except Exception:
+                    pass
             time.sleep(self.interval)
 
 class UDPListener:

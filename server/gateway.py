@@ -152,29 +152,35 @@ class GatewayHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(data).encode("utf-8"))
 
 class TokenGateway:
-    def __init__(self, port: int = 8400):
+    def __init__(self, port: int = 8400, enable_discovery: bool = False, peers: list[str] = None):
         self.port = port
+        self.enable_discovery = enable_discovery
         self.server = ThreadingHTTPServer(('127.0.0.1', port), GatewayHandler)
-        self.broadcaster = UDPBroadcaster(gateway_port=port)
+        self.broadcaster = UDPBroadcaster(gateway_port=port, targets=peers)
         self.listener = UDPListener(registry)
 
     def start(self) -> None:
-        self.broadcaster.start()
-        self.listener.start()
+        if self.enable_discovery:
+            self.broadcaster.start()
+            self.listener.start()
         self.server.serve_forever()
 
     def stop(self) -> None:
-        self.broadcaster.stop()
-        self.listener.stop()
+        if self.enable_discovery:
+            self.broadcaster.stop()
+            self.listener.stop()
         self.server.shutdown()
         self.server.server_close()
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Token Saver Gateway")
     parser.add_argument("--port", type=int, default=8400, help="Port to bind")
+    parser.add_argument("--discovery", action="store_true", help="Enable network mesh discovery")
+    parser.add_argument("--peers", type=str, default="", help="Comma-separated list of target IPs (e.g., 100.x.x.x)")
     args = parser.parse_args()
     
-    gateway = TokenGateway(port=args.port)
+    peers_list = [p.strip() for p in args.peers.split(",")] if args.peers else []
+    gateway = TokenGateway(port=args.port, enable_discovery=args.discovery, peers=peers_list)
     try:
         gateway.start()
     except KeyboardInterrupt:

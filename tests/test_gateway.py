@@ -5,7 +5,19 @@ import time
 import urllib.error
 import urllib.request
 
+import pytest
+from token_saver_elite_core import EliteMemoryCache, EliteTokenBridge
+import server.gateway
 from server.gateway import TokenGateway
+
+@pytest.fixture(autouse=True)
+def hermetic_cache(tmp_path, monkeypatch):
+    """Ensure test_gateway does not write to ~/.token_saver/cache.json."""
+    test_cache = EliteMemoryCache(str(tmp_path))
+    test_bridge = EliteTokenBridge(test_cache)
+    monkeypatch.setattr(server.gateway, "cache", test_cache)
+    monkeypatch.setattr(server.gateway, "bridge", test_bridge)
+
 
 
 def _find_free_port() -> int:

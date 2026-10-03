@@ -41,13 +41,14 @@ Zero external dependencies. 58 tests. Every claim is measured.
 | **Unified Token Engine** | `src/unified_token_engine.py` | Orchestrates dual-stage optimization: Macro PurePointer offloading (>500B) and Micro context compression. Seamlessly integrates with Mermicorn context compression when detected. |
 | **Sovereign Bridge** | `src/sovereign_bridge.py` | Content-addressed SHA-256 storage (`sha256://<hash>`), automated payload inspection, pointer resolution with cryptographic integrity checks, and immutable receipt chaining (`TOKEN_SAVER_CHAIN.jsonl`). |
 | **Token Counter** | `src/token_counter.py` | Estimates LLM token counts via calibrated character ratios. Falls back to exact `tiktoken` counts when available. |
-| **Semantic Compressor** | `src/semantic_compressor.py` | TF-IDF weighted line scoring with structural marker bonuses. Selects most important lines within a token budget. |
-| **Pure Pointer** | `src/pure_pointer.py` | Content-addressed file offloading. SHA-256 integrity verification. Path traversal rejection. |
-| **Elite Cache** | `token_saver_elite_core.py` | In-memory JSON cache with atomic disk persistence, TTL expiration, and rollback on write failure. |
+| **Semantic Compressor** | `src/semantic_compressor.py` | Block-aware segmentation (protects code fences, lists, paragraphs). TF-IDF weighted block scoring. |
+| **Pure Pointer** | `src/pure_pointer.py` | 50 MB Tidal LRU cache, 2 GiB free-disk guard, and 100% seamless remote read/write-through offload. |
+| **Elite Cache & Compressor** | `token_saver_elite_core.py` | 4-rung Lossless-first compression ladder (Exact → Normalize → Pointer → Declared Extractive). Emits omission receipts for dropped blocks. |
+| **Preserve Guard** | `src/preserve_guard.py` | Detects URLs, SHAs, timestamps, negations, and docket numbers. Fails closed (`BudgetUnmetProtectedError`) if budget requires dropping protected text. |
 | **SQLite Audit Log** | `token_saver_elite_core.py` | Records every optimization event with bytes/tokens before/after and compression method. |
 | **Promotion Authority** | `src/promotion_authority.py` | HMAC-SHA256 signed promotion grants with expiration and proof receipt verification. |
-| **HTTP Gateway** | `server/gateway.py` | ThreadingHTTPServer exposing cache, optimization, health, and Prometheus metrics endpoints. |
-| **Peer Discovery** | `server/discovery.py` | UDP broadcast/listen for LAN peer discovery with stale timeout. |
+| **HTTP Gateway** | `server/gateway.py` | ThreadingHTTPServer exposing cache, optimization, health, and Prometheus metrics endpoints. Boot requires explicit `--discovery` flag to join mesh. |
+| **Peer Discovery** | `server/discovery.py` | Opt-in, targeted Tailscale (`100.x.x.x`) peer discovery. Zero LAN UDP broadcast pollution. |
 | **Consistent Hash Ring** | `server/mesh.py` | Distributes cache keys across peers with configurable virtual nodes and N-replica replication. |
 | **MCP Tool Server** | `mcp/server.py` | JSON-RPC 2.0 MCP server with 4 tools for agent integration. |
 | **Integrity Watchdog** | `src/watchdog.py` | SHA-256 file monitoring with polling loop and change callbacks. |

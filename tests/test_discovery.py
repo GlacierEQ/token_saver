@@ -23,7 +23,7 @@ def test_peer_registry():
 def test_udp_broadcast_listen():
     registry = PeerRegistry()
     listener = UDPListener(registry, listen_port=9999)
-    broadcaster = UDPBroadcaster(gateway_port=8400, broadcast_port=9999, interval=0.1)
+    broadcaster = UDPBroadcaster(gateway_port=8400, broadcast_port=9999, interval=0.1, targets=["127.0.0.1"])
     
     listener.start()
     broadcaster.start()
