@@ -6,6 +6,7 @@ import copy
 import hashlib
 import json
 import logging
+import math
 import os
 import sqlite3
 import time
@@ -239,9 +240,14 @@ class EliteTokenBridge:
             )
         return result
 
-    def compress_context(self, context: str, compression_ratio: float = 0.1) -> str:
-        if not 0 < compression_ratio <= 1:
-            raise ValueError("compression_ratio must be greater than 0 and at most 1")
+    def compress_context(self, context: str, compression_ratio: float = 1.0) -> str:
+        if (
+            isinstance(compression_ratio, bool)
+            or not isinstance(compression_ratio, (int, float))
+            or not math.isfinite(compression_ratio)
+            or not 0 < compression_ratio <= 1
+        ):
+            raise ValueError("compression_ratio must be finite and in (0,1]")
             
         from src.semantic_compressor import segment_into_blocks, score_blocks
         blocks = segment_into_blocks(context)
@@ -307,7 +313,8 @@ class EliteTokenBridge:
         self, request: dict[str, Any], ttl: int = 3600
     ) -> dict[str, Any]:
         original = copy.deepcopy(request)
-        cache_key = f"request:sha256:{sha256_key(original)}"
+        # Avoid replaying cached results produced under the legacy 10% default.
+        cache_key = f"request:mission-preserve-v1:sha256:{sha256_key(original)}"
         cached = self.cache.get(cache_key)
         if cached is not None:
             cached["cache"] = {
@@ -321,12 +328,15 @@ class EliteTokenBridge:
         before = len(canonical_json(original).encode("utf-8"))
         context = optimized.get("context")
         protected_recall = 1.0
-        
+        context_policy = "preserved_by_default"
+
         if isinstance(context, str):
             try:
                 # Ensure we respect a request's requested compression_ratio if present
-                ratio = request.get("compression_ratio", 0.1)
+                ratio = request.get("compression_ratio", 1.0)
                 optimized["context"] = self.compress_context(context, compression_ratio=ratio)
+                if ratio < 1:
+                    context_policy = "explicit_extraction"
             except BudgetUnmetProtectedError:
                 pointer = externalize(context, dest=self.cache.home_dir / "pointers", label="context")
                 compact = f"[ptr:{pointer.canonical_uri}|file:{Path(pointer.path).name}|n={pointer.bytes_in}]"
@@ -340,6 +350,9 @@ class EliteTokenBridge:
             "after": after,
             "saved": max(0, before - after),
             "protected_recall": protected_recall,
+            "context_policy": context_policy,
+            "mission_context_preserved": optimized.get("context") == original.get("context"),
+            "measurement_basis": "local_utf8_bytes_not_provider_tokens",
         }
         optimized["cache"] = {
             "hit": False,

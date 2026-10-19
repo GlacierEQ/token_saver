@@ -7,7 +7,9 @@ or delegates to Mermicorn ContextCompressor when present.
 """
 from __future__ import annotations
 
+import copy
 import json
+import math
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
@@ -19,6 +21,14 @@ except (ImportError, ValueError):
     from sovereign_bridge import SovereignTokenBridge, SovereignPointerReceipt
     from semantic_compressor import SemanticCompressor
     from token_counter import estimate_tokens
+
+# Mission/governance/source fields must stay available to the next agent.
+_MISSION_FIELDS = frozenset({
+    "context", "mission", "mission_id", "objective", "objectives", "goal", "goals",
+    "instructions", "system", "messages", "corrections", "requirements", "evidence",
+    "sources", "facts", "decisions", "action_plan", "actions", "tasks", "cursor",
+    "continuation_cursor", "readback", "case", "case_id", "constraints",
+})
 
 # Optional Mermicorn integration
 try:
@@ -46,37 +56,68 @@ class UnifiedTokenEngine:
     def optimize_message_payload(
         self,
         payload: dict[str, Any],
-        offload_threshold_bytes: int = 500,
-        compression_ratio: float = 0.5,
+        offload_threshold_bytes: int | None = None,
+        compression_ratio: float = 1.0,
+        *,
+        allow_lossy_context: bool = False,
     ) -> dict[str, Any]:
-        """Runs the complete two-stage optimization pipeline."""
+        """Preserve complete work by default; allow explicit reversible offload/extraction."""
+        if offload_threshold_bytes is not None and (
+            isinstance(offload_threshold_bytes, bool)
+            or not isinstance(offload_threshold_bytes, int)
+            or offload_threshold_bytes <= 0
+        ):
+            raise ValueError("offload_threshold_bytes must be a positive integer or None")
+        if (
+            isinstance(compression_ratio, bool)
+            or not isinstance(compression_ratio, (int, float))
+            or not math.isfinite(compression_ratio)
+            or not 0 < compression_ratio <= 1
+        ):
+            raise ValueError("compression_ratio must be finite and in (0,1]")
+        if not isinstance(allow_lossy_context, bool):
+            raise ValueError("allow_lossy_context must be boolean")
         orig_raw = json.dumps(payload, sort_keys=True)
         orig_bytes = len(orig_raw.encode("utf-8"))
         orig_tokens = estimate_tokens(orig_raw)
 
-        # Stage 1: Macro Pure-Pointer Externalization
-        externalized_payload, did_externalize = self.bridge.auto_externalize_if_needed(
-            payload, threshold_bytes=offload_threshold_bytes
-        )
+        # Preserve full source and mission context unless an offload was requested.
+        if offload_threshold_bytes is None:
+            final_payload = copy.deepcopy(payload)
+            did_externalize = False
+        else:
+            final_payload, did_externalize = self.bridge.auto_externalize_if_needed(
+                payload,
+                threshold_bytes=offload_threshold_bytes,
+                preserve_keys=_MISSION_FIELDS,
+            )
 
-        # Stage 2: Micro Context Compression on any remaining long text
-        final_payload = externalized_payload
-        if isinstance(final_payload, dict) and "context" in final_payload and isinstance(final_payload["context"], str):
-            ctx_text = final_payload["context"]
-            if len(ctx_text) > 300:
-                if self.mermicorn_available:
-                    try:
-                        compressor = MermicornCompressor()
-                        comp_res = compressor.compress(ctx_text, strategy="semantic_dedup")
-                        final_payload["context"] = comp_res.compacted_text
-                    except Exception:
-                        final_payload["context"] = self.semantic_compressor.compress_to_budget(
-                            ctx_text, max_tokens=max(1, int(orig_tokens * compression_ratio))
-                        )
-                else:
-                    final_payload["context"] = self.semantic_compressor.compress_to_budget(
-                        ctx_text, max_tokens=max(1, int(orig_tokens * compression_ratio))
-                    )
+        requested_extract = compression_ratio < 1
+        blocked_extract = requested_extract and not allow_lossy_context
+        applied_extract = False
+        recovery_pointer = None
+        context = final_payload.get("context")
+        if requested_extract and allow_lossy_context and isinstance(context, str) and len(context) > 300:
+            compacted = None
+            if self.mermicorn_available:
+                try:
+                    compressor = MermicornCompressor()
+                    result = compressor.compress(context, strategy="semantic_dedup")
+                    if isinstance(result.compacted_text, str):
+                        compacted = result.compacted_text
+                except Exception:
+                    compacted = None
+            if compacted is None:
+                compacted = self.semantic_compressor.compress_to_budget(
+                    context,
+                    max_tokens=max(1, int(estimate_tokens(context) * compression_ratio)),
+                )
+            if compacted != context:
+                # Source write must succeed BEFORE an extracted answer leaves the pipeline.
+                receipt = self.bridge.externalize_payload("explicit_context_original", context)
+                recovery_pointer = receipt.canonical_uri
+                final_payload["context"] = compacted
+                applied_extract = True
 
         final_raw = json.dumps(final_payload, sort_keys=True)
         final_bytes = len(final_raw.encode("utf-8"))
@@ -99,5 +140,11 @@ class UnifiedTokenEngine:
                 "savings_pct": savings_pct,
                 "stage1_externalized": did_externalize,
                 "mermicorn_active": self.mermicorn_available,
+                "mission_depth_policy": "preserve_by_default",
+                "mission_context_preserved": final_payload.get("context") == payload.get("context"),
+                "lossy_compression_blocked": blocked_extract,
+                "lossy_compression_applied": applied_extract,
+                "original_context_pointer": recovery_pointer,
+                "token_count_basis": "local_counter_not_actual_provider_usage",
             },
         }

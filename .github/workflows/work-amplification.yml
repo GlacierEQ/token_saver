@@ -1,0 +1,42 @@
+name: Work Amplification Regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - src/unified_token_engine.py
+      - src/sovereign_bridge.py
+      - src/pure_pointer.py
+      - token_saver_elite_core.py
+      - server/gateway.py
+      - mcp/server.py
+      - tests/test_work_amplification_defaults.py
+      - tests/test_elite_core.py
+      - .github/workflows/work-amplification.yml
+  push:
+    branches: [main]
+    paths:
+      - src/unified_token_engine.py
+      - src/sovereign_bridge.py
+      - src/pure_pointer.py
+      - token_saver_elite_core.py
+      - server/gateway.py
+      - mcp/server.py
+      - tests/test_work_amplification_defaults.py
+      - .github/workflows/work-amplification.yml
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -e '.[dev,audit]'
+      - name: Run all tests and new regression gates
+        run: python -m pytest -q tests/

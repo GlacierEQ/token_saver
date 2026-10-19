@@ -141,6 +141,7 @@ class SovereignTokenBridge:
         data: Any,
         threshold_bytes: int = 500,
         label_prefix: str = "auto",
+        preserve_keys: frozenset[str] | None = None,
     ) -> tuple[Any, bool]:
         """Recursively checks payloads and externalizes large text blobs."""
         if isinstance(data, str) and len(data.encode("utf-8")) > threshold_bytes:
@@ -156,9 +157,13 @@ class SovereignTokenBridge:
             mutated = False
             new_dict = {}
             for k, v in data.items():
-                new_v, did_mut = self.auto_externalize_if_needed(
-                    v, threshold_bytes=threshold_bytes, label_prefix=f"{label_prefix}_{k}"
-                )
+                if preserve_keys and isinstance(k, str) and k.casefold() in preserve_keys:
+                    new_v, did_mut = v, False
+                else:
+                    new_v, did_mut = self.auto_externalize_if_needed(
+                        v, threshold_bytes=threshold_bytes,
+                        label_prefix=f"{label_prefix}_{k}", preserve_keys=preserve_keys,
+                    )
                 new_dict[k] = new_v
                 if did_mut:
                     mutated = True
@@ -169,7 +174,8 @@ class SovereignTokenBridge:
             new_list = []
             for i, item in enumerate(data):
                 new_item, did_mut = self.auto_externalize_if_needed(
-                    item, threshold_bytes=threshold_bytes, label_prefix=f"{label_prefix}_{i}"
+                    item, threshold_bytes=threshold_bytes,
+                    label_prefix=f"{label_prefix}_{i}", preserve_keys=preserve_keys,
                 )
                 new_list.append(new_item)
                 if did_mut:
