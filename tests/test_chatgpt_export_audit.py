@@ -1,5 +1,8 @@
 import json
 import unittest
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.chatgpt_export_audit import visible_text, selected_messages, analyze_conversations, token_measure, extract_export
 
 class TokenAuditTests(unittest.TestCase):
@@ -38,7 +41,6 @@ class TokenAuditTests(unittest.TestCase):
         obj={"conversations":[{"title":"One","mapping":{} }]}
         self.assertEqual(len(extract_export(obj)),1)
 
-if __name__=='__main__':unittest.main()
 
 # Regression: count only exported visible text; never imply hidden telemetry.
 class ExportAndSafetyTests(unittest.TestCase):
@@ -75,3 +77,6 @@ class ExportAndSafetyTests(unittest.TestCase):
             self.assertNotIn("PRIVATE_SENTINEL_NEVER_IN_REPORT", destination.with_suffix(".csv").read_text())
             self.assertNotIn("PRIVATE_SENTINEL_NEVER_IN_REPORT", destination.with_suffix(".json").read_text())
             self.assertEqual(rows[0]["actual_inference_total_tokens"], "UNAVAILABLE")
+
+if __name__ == '__main__':
+    unittest.main()
