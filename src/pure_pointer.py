@@ -6,6 +6,8 @@ import hashlib
 import os
 import re
 import tempfile
+import shutil
+from typing import ClassVar
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,9 +31,6 @@ def _safe_label(label: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", label).strip(".-")
     return cleaned or "blob"
 
-
-import shutil
-from typing import ClassVar
 
 class MockRemoteStore:
     """Simulates OCI / Cloud bucket for seamless offload."""

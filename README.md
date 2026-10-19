@@ -2,7 +2,7 @@
 
 **Dependency-free, measurement-honest, distributed token optimization, pure-pointer offloading, and APEX receipt chaining for LLM agent infrastructure.**
 
-Zero external dependencies. 58 tests. Every claim is measured.
+Zero mandatory runtime dependencies. The full Python suite runs in CI; local token metrics are not provider inference telemetry.
 
 ## Architecture
 
@@ -42,7 +42,7 @@ Zero external dependencies. 58 tests. Every claim is measured.
 | **Sovereign Bridge** | `src/sovereign_bridge.py` | Content-addressed SHA-256 storage (`sha256://<hash>`), automated payload inspection, pointer resolution with cryptographic integrity checks, and immutable receipt chaining (`TOKEN_SAVER_CHAIN.jsonl`). |
 | **Token Counter** | `src/token_counter.py` | Estimates LLM token counts via calibrated character ratios. Falls back to exact `tiktoken` counts when available. |
 | **Semantic Compressor** | `src/semantic_compressor.py` | Block-aware segmentation (protects code fences, lists, paragraphs). TF-IDF weighted block scoring. |
-| **Pure Pointer** | `src/pure_pointer.py` | 50 MB Tidal LRU cache, 2 GiB free-disk guard, and 100% seamless remote read/write-through offload. |
+| **Pure Pointer** | `src/pure_pointer.py` | Explicit durable SHA-256 source storage, 2 GiB free-disk guard, independent local readback, and no automatic eviction of preserved sources. |
 | **Elite Cache & Compressor** | `token_saver_elite_core.py` | 4-rung Lossless-first compression ladder (Exact → Normalize → Pointer → Declared Extractive). Emits omission receipts for dropped blocks. |
 | **Preserve Guard** | `src/preserve_guard.py` | Detects URLs, SHAs, timestamps, negations, and docket numbers. Fails closed (`BudgetUnmetProtectedError`) if budget requires dropping protected text. |
 | **SQLite Audit Log** | `token_saver_elite_core.py` | Records every optimization event with bytes/tokens before/after and compression method. |
@@ -90,7 +90,7 @@ python3 -m mcp.server
 # Run the integrity watchdog
 python3 -m src.watchdog
 
-# Run all 58 tests
+# Run the complete Python test suite
 python3 -m pytest tests/ -v
 ```
 
@@ -103,7 +103,7 @@ Optional:    tiktoken (exact GPT token counts), mermicorn-token-saver
 
 ## Test Coverage
 
-58 tests across 15 test files. All assertions are real — no stubs, no `return True`, no in-test simulators.
+The full Python test suite and security checks run in CI; test counts are read from each actual workflow run, not hard-coded.
 
 ## License
 
