@@ -6,12 +6,57 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+# Public repositories cannot call a private reusable workflow. Preserve its
+# actual Python test, static-analysis and dependency-security intent locally.
 jobs:
-  ci:
-    uses: GlacierEQ/public-actions-runner-host/.github/workflows/reusable-ci.yml@main
-    with:
-      repo_name: ${{ github.event.repository.name }}
-      language: python
-      run_tests: true
-      run_lint: true
-      run_security: true
+  python-tests:
+    name: Python full regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install package and test dependencies
+        run: python -m pip install -e '.[dev,audit]'
+      - name: Run complete unit and regression test suite
+        run: python -m pytest -q tests/
+      - name: Compile Python source
+        run: python -m compileall -q src mcp server token_saver_elite_core.py
+
+  python-quality:
+    name: Python critical lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Ruff
+        run: python -m pip install ruff
+      - name: Check syntax, undefined names and high-impact lint
+        run: python -m ruff check . --select E4,E7,E9,F63,F7,F82 --output-format=github
+
+  python-security:
+    name: Python security and dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install scanners
+        run: python -m pip install bandit pip-audit
+      - name: Scan Python sources for medium/high severity issues
+        run: bandit -q -ll -r src mcp server token_saver_elite_core.py
+      - name: Audit declared development dependencies
+        run: pip-audit -r requirements-dev.txt
