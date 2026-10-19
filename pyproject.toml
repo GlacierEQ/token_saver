@@ -29,3 +29,12 @@ token-saver-chatgpt-audit = "src.chatgpt_export_audit:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.ruff.lint.per-file-ignores]
+# Only legacy import-bootstrap files intentionally add repo paths before importing.
+"tests/test_elite_core.py" = ["E402"]
+"tests/test_pure_pointer.py" = ["E402"]
+"tests/test_sovereign_bridge.py" = ["E402"]
+"tests/test_unified_token_engine.py" = ["E402"]
+"tests/test_work_amplification_manifest.py" = ["E402"]
+"token_saver_elite_cli.py" = ["E402"]
