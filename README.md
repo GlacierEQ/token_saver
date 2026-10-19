@@ -121,3 +121,10 @@ python3 -m pytest -q tests/test_chatgpt_export_audit.py
 ```
 
 This local-only command writes aggregate JSON and per-message CSV reports. With tiktoken installed, token counts are precise **for the o200k_base tokenizer**, not necessarily the deployed ChatGPT model. Without it, rough character-based estimates are explicitly labeled. Protect your private export and generated reports; none of the user's conversation content is included in this change. See [ChatGPT token audit documentation](docs/CHATGPT_EXPORT_TOKEN_AUDIT.md).
+
+
+## Mission-first token amplification
+
+**Outcome depth comes before token reduction.** The default unified, Elite, and HTTP paths now preserve the complete task and evidence context. No automatic 500-byte pointer replacement, 50% context reduction, or 10% retention. Explicit bulk-document offload remains reversible; extractive context compression requires clear opt-in and an original-source receipt. The MCP interface returns actual local results and measurements rather than fixed fixture values. This change does not reveal ChatGPT's hidden token usage or prove that the ChatGPT host has adopted these defaults.
+
+Read [Work Amplification Before Compression](docs/WORK_AMPLIFICATION_BEFORE_COMPRESSION.md), which references the **existing Aspen token-aware execution doctrine** rather than creating a competing policy.
