@@ -43,3 +43,7 @@ compacted = engine.optimize_message_payload(
     compression_ratio=0.2, allow_lossy_context=True,
 )
 ```
+
+## Source-persistence boundary
+
+`src.pure_pointer.externalize` now fails when it cannot durably write and hash-check the original. It never issues a pointer backed only by the temporary in-process `MockRemoteStore`. `resolve` requires an actual persisted source file. Automatic 50 MB LRU eviction no longer applies to source/evidence pointers; discarding preserved originals is not a valid way to report greater savings. Full mission state remains inline unless the caller explicitly selects a reversible source offload.
