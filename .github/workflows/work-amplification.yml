@@ -6,6 +6,7 @@ on:
     paths:
       - src/unified_token_engine.py
       - src/sovereign_bridge.py
+      - src/pure_pointer.py
       - token_saver_elite_core.py
       - server/gateway.py
       - mcp/server.py
@@ -17,6 +18,7 @@ on:
     paths:
       - src/unified_token_engine.py
       - src/sovereign_bridge.py
+      - src/pure_pointer.py
       - token_saver_elite_core.py
       - server/gateway.py
       - mcp/server.py
