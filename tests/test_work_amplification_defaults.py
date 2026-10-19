@@ -132,3 +132,32 @@ def test_mcp_does_not_fabricate_outcomes_or_savings(tmp_path):
     assert pointer["pointer_uri"] == "sha256://" + hashlib.sha256(original.encode("utf-8")).hexdigest()
     assert pointer["savings_status"] == "bytes_only"
     assert any(x.read_text(encoding="utf-8") == original for x in (tmp_path / "blobs").rglob("*") if x.is_file())
+
+def test_pointer_refuses_ephemeral_only_source_storage(tmp_path, monkeypatch):
+    from src import pure_pointer
+    monkeypatch.setattr(pure_pointer, "get_free_disk_gb", lambda _: 0.1)
+    with pytest.raises(OSError, match="INSUFFICIENT_PERSISTENT_STORAGE"):
+        pure_pointer.externalize("Native evidence cannot be lost " * 20, tmp_path, label="evidence")
+    assert not list(tmp_path.glob("*.txt"))
+
+
+def test_pointer_recovery_never_uses_process_only_mock_store(tmp_path):
+    from src import pure_pointer
+    original = "Evidence source with native provenance " * 30
+    pointer = pure_pointer.externalize(original, tmp_path, label="native")
+    Path(pointer.path).unlink()
+    # The legacy mock is not a durable remote store. Its presence is not proof.
+    pure_pointer.MockRemoteStore.put(pointer.sha256, original.encode("utf-8"))
+    with pytest.raises(FileNotFoundError):
+        pure_pointer.resolve(pointer, allowed_root=tmp_path)
+
+
+def test_legacy_truncated_cache_entry_cannot_replay(tmp_path):
+    from token_saver_elite_core import sha256_key
+    cache = EliteMemoryCache(str(tmp_path))
+    request = {"context": full_context(), "mission_id": "M-1"}
+    cache.set(f"request:sha256:{sha256_key(request)}", {"context": "legacy-shortened"})
+    bridge = EliteTokenBridge(cache)
+    fresh = bridge.optimize_request(request)
+    assert fresh["context"] == request["context"]
+    assert fresh["cache"]["hit"] is False
