@@ -26,7 +26,9 @@ class PeerRegistry:
         self.stale_timeout = stale_timeout
 
     def add_or_update(self, host: str, port: int) -> None:
-        """Add a new peer or update the last_seen time of an existing one."""
+        """Accept only valid integer network ports from peer announcements."""
+        if type(port) is not int or not 1 <= port <= 65535:
+            raise ValueError("INVALID_PEER_PORT")
         with self.lock:
             peer_id = f"{host}:{port}"
             if peer_id in self.peers:
