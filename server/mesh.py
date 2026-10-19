@@ -1,4 +1,6 @@
 import hashlib
+import ipaddress
+from urllib.parse import quote
 import bisect
 import urllib.request
 import urllib.error
@@ -8,6 +10,32 @@ from typing import List, Optional, Any, Dict
 from server.discovery import PeerRegistry
 from token_saver_elite_core import EliteMemoryCache
 
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _safe_peer_url(node_id: str, key: str | None = None) -> str:
+    """Construct HTTP URL from the discovered IPv4 peer, never arbitrary URI text."""
+    host, sep, port_s = node_id.rpartition(":")
+    if not sep or not port_s.isascii() or not port_s.isdecimal():
+        raise ValueError("INVALID_PEER_ENDPOINT")
+    try:
+        ipaddress.IPv4Address(host)
+    except ipaddress.AddressValueError as exc:
+        raise ValueError("INVALID_PEER_ADDRESS") from exc
+    port = int(port_s)
+    if not 1 <= port <= 65535:
+        raise ValueError("INVALID_PEER_PORT")
+    suffix = "/cache" if key is None else "/cache/" + quote(key, safe="")
+    return f"http://{host}:{port}{suffix}"
+
+
+def _open_peer(req):
+    # In particular, never follow a response redirect to file:// or localhost.
+    return urllib.request.build_opener(_NoRedirect()).open(req, timeout=1.0)
+
 class HashRing:
     """Consistent hashing ring for distributed cache routing."""
     def __init__(self, replicas: int = 150):
@@ -16,7 +44,7 @@ class HashRing:
         self.sorted_keys: List[int] = []
 
     def _hash(self, key: str) -> int:
-        return int(hashlib.md5(key.encode('utf-8')).hexdigest(), 16)
+        return int(hashlib.md5(key.encode('utf-8'), usedforsecurity=False).hexdigest(), 16)
 
     def add_node(self, node_id: str) -> None:
         """Add a node to the hash ring."""
@@ -97,8 +125,8 @@ class DistributedCache:
             return self.cache.get(key)
             
         try:
-            req = urllib.request.Request(f"http://{primary}/cache/{key}")
-            with urllib.request.urlopen(req, timeout=1.0) as response:
+            req = urllib.request.Request(_safe_peer_url(primary, key))
+            with _open_peer(req) as response:
                 if response.status == 200:
                     data = json.loads(response.read())
                     return data.get("value")
@@ -119,12 +147,13 @@ class DistributedCache:
                 try:
                     data = json.dumps({"key": key, "value": value, "ttl": ttl}).encode("utf-8")
                     req = urllib.request.Request(
-                        f"http://{node}/cache",
+                        _safe_peer_url(node),
                         data=data,
                         headers={"Content-Type": "application/json"},
                         method="POST"
                     )
-                    urllib.request.urlopen(req, timeout=1.0)
+                    with _open_peer(req) as response:
+                        response.read()
                 except Exception:
                     pass
         
