@@ -1,4 +1,5 @@
 import sys
+import hashlib
 import json
 import traceback
 from typing import Any
@@ -40,7 +41,7 @@ class TokenSaverMCPServer:
                     "tools": [
                         {
                             "name": "compress_context",
-                            "description": "Compress text context",
+                            "description": "Explicitly requested extractive compression only; original source remains recoverable",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
@@ -53,7 +54,7 @@ class TokenSaverMCPServer:
                         },
                         {
                             "name": "externalize",
-                            "description": "Create pure pointer",
+                            "description": "Explicit reversible source storage using verified SHA-256 pointer",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
@@ -66,7 +67,7 @@ class TokenSaverMCPServer:
                         },
                         {
                             "name": "optimize_request",
-                            "description": "Optimize request",
+                            "description": "Preserve full context by default; reduce only when compression_ratio is supplied explicitly",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {
@@ -78,7 +79,7 @@ class TokenSaverMCPServer:
                         },
                         {
                             "name": "cache_status",
-                            "description": "Cache health metrics",
+                            "description": "Read actual local cache health and measurements",
                             "inputSchema": {
                                 "type": "object",
                                 "properties": {}
@@ -130,6 +131,8 @@ class TokenSaverMCPServer:
             pointer = externalize(args["text"], dest=Path(args["dest"]), label=args["label"])
             if not Path(pointer.path).is_file():
                 raise RuntimeError("PERSISTENT_POINTER_UNAVAILABLE")
+            if hashlib.sha256(Path(pointer.path).read_bytes()).hexdigest() != pointer.sha256:
+                raise RuntimeError("PERSISTENT_POINTER_HASH_MISMATCH")
             return {
                 "pointer_uri": pointer.canonical_uri,
                 "sha256": pointer.sha256,
