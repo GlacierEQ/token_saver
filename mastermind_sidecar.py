@@ -205,4 +205,3 @@ class MastermindSidecar:
 if __name__ == "__main__":
     sidecar = MastermindSidecar()
     print(sidecar.status())
-""", "Description": "Complete rebuild of mastermind_sidecar.py — now a real process monitor with actual system metrics, cache file verification, database health checks, and disk space monitoring. Replaces the 25-line stub that returned hardcoded 'healthy'.", "Overwrite": true, "TargetFile": "/tmp/token_saver/mastermind_sidecar.py
