@@ -13,6 +13,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
+audit = ["tiktoken>=0.7"]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio",
@@ -23,6 +24,7 @@ token-saver = "token_saver_elite_cli:main"
 token-saver-mcp = "mcp.server:main"
 token-saver-sidecar = "mastermind_sidecar:main"
 token-saver-gateway = "server.gateway:main"
+token-saver-chatgpt-audit = "src.chatgpt_export_audit:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

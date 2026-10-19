@@ -108,3 +108,16 @@ Optional:    tiktoken (exact GPT token counts), mermicorn-token-saver
 ## License
 
 See [LICENSE](LICENSE).
+
+
+## ChatGPT conversation export auditor
+
+Analyze **export-visible message text**, per selected conversation branch, role and turn. It does **not** measure ChatGPT's actual inference input/output, cached, hidden reasoning tokens, or the percentage of available compute.
+
+```bash
+python3 -m pip install -e '.[audit]'
+token-saver-chatgpt-audit ~/Downloads/chatgpt-export.zip --output ~/Desktop/chatgpt-token-audit --require-tokenizer
+python3 -m pytest -q tests/test_chatgpt_export_audit.py
+```
+
+This local-only command writes aggregate JSON and per-message CSV reports. With tiktoken installed, token counts are precise **for the o200k_base tokenizer**, not necessarily the deployed ChatGPT model. Without it, rough character-based estimates are explicitly labeled. Protect your private export and generated reports; none of the user's conversation content is included in this change. See [ChatGPT token audit documentation](docs/CHATGPT_EXPORT_TOKEN_AUDIT.md).
