@@ -10,3 +10,8 @@ cache.json
 cache.tmp
 TOKEN_SAVER_CHAIN.jsonl
 token_saver_work/
+
+# Local ChatGPT audit outputs and downloaded personal exports
+chatgpt-token-audit*.csv
+chatgpt-token-audit*.json
+chatgpt-export*.zip
