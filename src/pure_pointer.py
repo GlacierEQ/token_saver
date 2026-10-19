@@ -86,37 +86,36 @@ def enforce_lru_quota(root: Path, max_mb: int = 50) -> None:
 
 
 def externalize(body: str, dest: Path, label: str = "blob") -> Pointer:
+    """Persist a source before issuing its pointer; never use process-only fallback."""
     root = dest.expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
     raw = body.encode("utf-8")
     digest = hashlib.sha256(raw).hexdigest()
     path = root / f"{_safe_label(label)}_{digest}.txt"
-    
-    # 1. Seamless Remote Write-Through
-    MockRemoteStore.put(digest, raw)
-    
-    # 2. Local Disk Guard (Only write locally if disk is safe)
-    if get_free_disk_gb(root) >= 2.0:
-        temp_path = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                dir=root,
-                prefix=f"{_safe_label(label)}_{digest}_",
-                suffix=".tmp",
-                delete=False,
-            ) as temp_file:
-                temp_file.write(raw)
-                temp_file.flush()
-                os.fsync(temp_file.fileno())
-                temp_path = Path(temp_file.name)
-            os.replace(temp_path, path)
-        finally:
-            if temp_path is not None:
-                temp_path.unlink(missing_ok=True)
-                
-        # 3. LRU Quota Eviction (50 MB)
-        enforce_lru_quota(root, max_mb=50)
-                
+
+    if get_free_disk_gb(root) < 2.0:
+        raise OSError("INSUFFICIENT_PERSISTENT_STORAGE")
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=root,
+            prefix=f"{_safe_label(label)}_{digest}_",
+            suffix=".tmp",
+            delete=False,
+        ) as temp_file:
+            temp_file.write(raw)
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
+            temp_path = Path(temp_file.name)
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+    # A source/evidence pointer is not a disposable LRU cache entry. Do not
+    # silently evict older sources to improve a "bytes saved" metric.
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+        raise OSError("PERSISTENT_POINTER_VERIFICATION_FAILED")
     canonical_uri = f"sha256://{digest}"
     compact = f"[ptr:{canonical_uri}|file:{path.name}|n={len(raw)}]"
     return Pointer(
@@ -133,18 +132,9 @@ def resolve(pointer: Pointer, allowed_root: Path | None = None) -> str:
         except ValueError as exc:
             raise ValueError("pointer path is outside the allowed root") from exc
             
-    # 1. Local Read
-    raw = None
-    if path.exists():
-        raw = path.read_bytes()
-    else:
-        # 2. Seamless Remote Read-Through (Cache Miss)
-        raw = MockRemoteStore.get(pointer.sha256)
-        if raw is None:
-            raise ValueError(f"pointer {pointer.sha256} not found locally or in remote store")
-            
-        # Optional: Write back to local cache if space allows (omitted for brevity)
-        
+    if not path.is_file():
+        raise FileNotFoundError(f"source pointer not durably present: {pointer.sha256}")
+    raw = path.read_bytes()
     actual = hashlib.sha256(raw).hexdigest()
     if actual != pointer.sha256 or pointer.canonical_uri != f"sha256://{actual}":
         raise ValueError("pointer content hash mismatch")
