@@ -161,3 +161,12 @@ def test_legacy_truncated_cache_entry_cannot_replay(tmp_path):
     fresh = bridge.optimize_request(request)
     assert fresh["context"] == request["context"]
     assert fresh["cache"]["hit"] is False
+
+def test_source_pointer_write_never_calls_disposable_cache_eviction(tmp_path, monkeypatch):
+    from src import pure_pointer
+    def destructive_eviction(*_args, **_kwargs):
+        raise AssertionError("Persistent source was subjected to automatic LRU eviction")
+    monkeypatch.setattr(pure_pointer, "enforce_lru_quota", destructive_eviction)
+    content = "Persist an exact case source without pruning " * 30
+    ptr = pure_pointer.externalize(content, tmp_path, label="original")
+    assert pure_pointer.resolve(ptr, allowed_root=tmp_path) == content
