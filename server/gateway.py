@@ -98,7 +98,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
             
         text = body["text"]
-        ratio = body.get("ratio", 0.5)
+        ratio = body.get("ratio", 1.0)
         
         optimized = bridge.compress_context(text, compression_ratio=ratio)
         saved = len(text) - len(optimized)
@@ -110,7 +110,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "measurements": {
                 "original_len": len(text),
                 "optimized_len": len(optimized),
-                "saved": saved
+                "saved": saved,
+                "measurement_unit": "characters_not_provider_tokens",
+                "mission_context_preserved": optimized == text,
             }
         })
 
